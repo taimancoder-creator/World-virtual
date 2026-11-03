@@ -3,82 +3,46 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a111c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>TAIMAN GTA Online</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-:root{--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--cy:#00eaff;--pk:#ff62d5;--bg:#101c2dd9}
-html,body{height:100%}
-body{overflow:hidden;background:#080d16;color:#fff;font-family:system-ui,Arial,sans-serif;touch-action:none}
-canvas{display:block}
-button{font:inherit;color:inherit;cursor:pointer;border:0;touch-action:manipulation}
-#intro{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;background:radial-gradient(60% 50% at 20% 20%,#1d5a8a99,transparent),radial-gradient(60% 50% at 85% 80%,#1da57a77,transparent),#080d16}
-#intro h1{color:var(--cy);letter-spacing:3px;text-shadow:0 0 18px var(--cy);font-size:clamp(28px,9vw,48px)}
-#intro p{color:#a5b8cc;font-size:13px}
-#nick{width:250px;height:48px;border-radius:14px;border:1px solid #00dfff77;background:#101a2af2;color:#fff;text-align:center;font-size:16px;outline:none;user-select:text}
-#nick:focus{border-color:var(--cy)}
-#gd{display:flex;gap:10px}
-#gd button{padding:12px 22px;border-radius:999px;background:#ffffff1f;border:2px solid transparent;font-size:15px}
-#gd button.s{border-color:#fff;background:#ffffff47}
-#go{padding:15px 42px;border-radius:999px;background:var(--cy);color:#001018;font-weight:bold;font-size:17px;box-shadow:0 8px 28px #00eaff55}
-#go:disabled{opacity:.5}
-#msg{color:#ffb4a0;font-size:12px;min-height:16px;max-width:300px}
-#topbar{position:fixed;top:calc(12px + var(--st));left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;z-index:10;pointer-events:none}
-#logo{color:var(--cy);font-size:16px;font-weight:bold;letter-spacing:2px;text-shadow:0 0 12px var(--cy)}
-#topRight{display:flex;align-items:center;gap:10px;font-size:11px;color:#a5b8cc}
-#chip i{font-style:normal;color:#5be7a9}#chip.off i{color:#ff9b6b}
-#mute{pointer-events:auto;width:34px;height:34px;border-radius:50%;border:1px solid #00dfff80;background:var(--bg);font-size:15px}
-#radio{position:fixed;top:calc(44px + var(--st));left:16px;z-index:10;font-size:11px;color:#a5b8cc;pointer-events:none;padding:4px 10px;border-radius:10px;background:var(--bg);border:1px solid #ffffff22;transition:all .2s}
-#radio.act{color:#fff;border-color:#5be7a9;box-shadow:0 0 16px #5be7a977}
-#log{position:fixed;top:calc(76px + var(--st));left:16px;width:min(300px,64vw);z-index:10;display:flex;flex-direction:column;gap:4px;pointer-events:none;font-size:12px}
-#log div{background:#0a161ea6;border-radius:10px;padding:5px 10px;overflow-wrap:anywhere;border:1px solid #ffffff1a;animation:fi .25s ease}
-@keyframes fi{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-#log .sys{color:#a5b8cc}
-#joystick{position:fixed;left:20px;bottom:calc(84px + var(--sb));width:116px;height:116px;border-radius:50%;background:var(--bg);border:1px solid #ffffff35;z-index:20;touch-action:none;transition:border-color .15s,box-shadow .15s}
-#joystick.run{border-color:#ffb347;box-shadow:0 0 18px #ffb34788}
-#stick{position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius:50%;background:#00dfff;box-shadow:0 0 18px #00dfff77;pointer-events:none;will-change:left,top}
-#joystick.run #stick{background:#ffb347;box-shadow:0 0 18px #ffb347aa}
-#actions{position:fixed;right:20px;bottom:calc(84px + var(--sb));display:flex;flex-direction:column;gap:10px;z-index:20}
-.action{width:58px;height:58px;border-radius:50%;border:1px solid #00dfff99;background:var(--bg);font-size:10px;font-weight:bold;transition:transform .12s,background .15s}
-.action:active{transform:scale(.94)}
-#chatBtn{font-size:22px}
-#chatBtn.on{background:#00dfff;color:#001018}
-#ptt.on{background:#e0344d;border-color:#ff8090;animation:pl 1s infinite}
-@keyframes pl{0%{box-shadow:0 0 0 0 #ff5d6cb3}100%{box-shadow:0 0 0 18px #ff5d6c00}}
-#chatPanel{position:fixed;bottom:calc(16px + var(--sb));left:50%;transform:translate(-50%,20px);width:min(520px,calc(100% - 32px));display:flex;gap:8px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
-#chatPanel.open{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
-#messageInput{min-width:0;flex:1;height:46px;border:1px solid #00dfff66;border-radius:14px;background:#101a2af2;color:#fff;padding:0 14px;outline:none;font-size:16px;user-select:text}
-#messageInput:focus{border-color:var(--cy)}
-#send{width:64px;border-radius:14px;background:var(--cy);color:#001018;font-weight:bold;font-size:12px}
-.bubble{position:fixed;display:none;min-width:80px;max-width:210px;padding:8px 12px;border-radius:12px;background:#111c2eee;border:1px solid var(--cy);font-size:13px;transform:translate(-50%,-100%);z-index:25;pointer-events:none;overflow-wrap:anywhere}
-.bubble b{display:block;color:var(--cy);font-size:9px;margin-bottom:3px}
-.bubble.o{border-color:var(--pk)}.bubble.o b{color:var(--pk)}
-@media(max-height:480px){#joystick,#actions{bottom:calc(70px + var(--sb))}#joystick{width:96px;height:96px}.action{width:48px;height:48px}}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div id="intro">
- <h1>TAIMAN GTA</h1>
- <p>Onlayn olam: chat va ovozli ratsiya</p>
- <input id="nick" maxlength="16" placeholder="Ismingiz" autocomplete="off">
- <div id="gd"><button data-g="0" class="s"> Erkak</button><button data-g="1"> Ayol</button></div>
- <button id="go">Olamga kirish</button>
- <div id="msg"></div>
+<div id="intro" class="loading">
+ <div id="ld"><div id="ldt">Yuklanmoqda… 0%</div><div id="bar"><u id="barf"></u></div></div>
+ <div id="pick">
+  <h1>TAIMAN GTA</h1>
+  <p>Personajingizni tanlang</p>
+  <div id="grid"></div>
+  <div class="row"><input id="nick" maxlength="16" placeholder="Ismingiz" autocomplete="off"><button id="go">Olamga kirish</button></div>
+  <div id="msg"></div>
+ </div>
 </div>
 
 <div id="topbar">
  <div id="logo">TAIMAN GTA</div>
- <div id="topRight"><span id="chip" class="off"><i></i> <span id="cn">1</span> onlayn</span><button id="mute"></button></div>
+ <div id="topRight">
+  <span id="chip" class="off"><i></i><span id="cn">1</span><span class="tx">onlayn</span></span>
+  <button class="ib" id="fightBtn" aria-label="Jang va juftlik"><svg viewBox="0 0 24 24"><path d="M5 5l9 9M5 5v4M5 5h4"/><path d="M19 5l-9 9M19 5v4M19 5h-4"/><path d="M8 16l-3 3M16 16l3 3"/></svg></button>
+  <button class="ib" id="shopBtn" aria-label="Shahar qurish"><svg viewBox="0 0 24 24"><path d="M6 8h12l1 12H5z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg></button>
+  <button class="ib" id="mute" aria-label="Ovoz"><svg class="s1" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/></svg><svg class="s2" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg></button>
+ </div>
 </div>
-<div id="radio"> Ratsiya: o‘chiq</div>
-<div id="log"></div>
+<div id="radio">Ratsiya: o‘chiq</div>
+<div id="log"></div><div id="hud"></div><div id="toast"></div>
+<div id="term"><div id="tout"></div><div id="trow"><span>$</span><input id="tin" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send"></div></div>
 <div id="bubbles"></div>
 
+<div id="hp"><u></u></div>
 <div id="joystick"><div id="stick"></div></div>
 <div id="actions">
- <button class="action" id="chatBtn"></button>
- <button class="action" id="ptt"> RATSIYA</button>
- <button class="action" id="punch">ZARBA</button>
+ <button class="action sm" id="chatBtn" aria-label="Xabar"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></button>
+ <button class="action sm" id="ptt" aria-label="Ratsiya"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+ <button class="action" id="punch" aria-label="Zarba"><svg viewBox="0 0 24 24"><path d="M12 3l2 5 5-2-2 5 5 2-5 2 2 5-5-2-2 5-2-5-5 2 2-5-5-2 5-2-2-5 5 2z"/></svg><span>ZARBA</span></button>
+ <button class="action" id="jump" aria-label="Sakrash"><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6M6 19l6-6 6 6"/></svg><span>SAKRA</span></button>
 </div>
 <div id="chatPanel">
  <input id="messageInput" placeholder="Xabar yozing..." autocomplete="off" enterkeyhint="send" maxlength="140">
@@ -89,373 +53,6 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;touch-action:manipulat
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
 
-<script type="module">
-import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-
-const $=id=>document.getElementById(id);
-const MODELS=['man-base-character-rigged.glb','woman-base-character-rigged.glb'];
-const WALK=2.8,RUN=5.4,RUN_AT=.88;   // yurish/yugurish tezligi, joystick ~88% tortilsa yugurish
-
-let scene,camera,renderer,clock;
-const loader=new GLTFLoader();
-const gltfCache=new Map();
-let me=null;
-const myInfo={name:'Taiman',g:0,id:Math.random().toString(36).slice(2,10)};
-const remotes=new Map();
-const joyDir=new THREE.Vector2(),keys={};
-let cameraAngle=0,camPointer=null,lastX=0,joystickPointer=null,started=false;
-let net=null,stepT=0,camDist=5.8;
-
-/* ===== OVOZ ===== */
-let AC=null,master=null,noiseBuf=null,muted=false;
-function initAudio(){
- if(AC){if(AC.state==='suspended')AC.resume();return}
- const A=window.AudioContext||window.webkitAudioContext;if(!A)return;
- AC=new A();master=AC.createGain();master.gain.value=.9;master.connect(AC.destination);
- noiseBuf=AC.createBuffer(1,AC.sampleRate*.4,AC.sampleRate);
- const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
-}
-function noise(type,freq,dur,vol,to){
- if(!AC||vol<.01)return;const t=AC.currentTime,s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();
- s.buffer=noiseBuf;s.playbackRate.value=.8+Math.random()*.4;f.type=type;f.frequency.setValueAtTime(freq,t);
- if(to)f.frequency.exponentialRampToValueAtTime(to,t+dur);
- g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
- s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+dur+.02);
-}
-function tone(f0,dur,vol,type,f1){
- if(!AC)return;const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
- o.type=type||'sine';o.frequency.setValueAtTime(f0,t);if(f1)o.frequency.exponentialRampToValueAtTime(f1,t+dur);
- g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
- o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);
-}
-const sndStep=(v=1)=>{noise('lowpass',420+Math.random()*300,.14,.45*v);tone(70+Math.random()*20,.1,.12*v,'sine',45)};
-const sndSend=()=>tone(660,.12,.12,'triangle',880);
-const sndMsg=()=>{tone(740,.1,.12,'triangle');setTimeout(()=>tone(990,.14,.12,'triangle'),90)};
-const sndPunch=()=>{noise('bandpass',1800,.18,.5,300);setTimeout(()=>{noise('lowpass',300,.15,.7);tone(110,.15,.3,'sine',50)},90)};
-const sndPtt=()=>tone(1100,.06,.1,'square');
-document.addEventListener('pointerdown',initAudio);
-$('mute').onclick=e=>{e.stopPropagation();initAudio();muted=!muted;if(master)master.gain.value=muted?0:.9;$('mute').textContent=muted?'':''};
-
-/* ===== SAHNA ===== */
-function init(){
- scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb9cb);scene.fog=new THREE.Fog(0x9bb9cb,35,100);
- camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.1,200);
- renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
- renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;
- document.body.appendChild(renderer.domElement);
- clock=new THREE.Clock();
- scene.add(new THREE.HemisphereLight(0xffffff,0x526174,2));
- const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(8,15,8);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
- Object.assign(sun.shadow.camera,{left:-25,right:25,top:25,bottom:-25});scene.add(sun);
- const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x52645a,roughness:1}));
- ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
- const road=new THREE.Mesh(new THREE.PlaneGeometry(8,100),new THREE.MeshStandardMaterial({color:0x282d33}));
- road.rotation.x=-Math.PI/2;road.position.y=.02;road.receiveShadow=true;scene.add(road);
- const sm=new THREE.MeshBasicMaterial({color:0xe4e1cf});
- for(let z=-45;z<50;z+=7){const s=new THREE.Mesh(new THREE.BoxGeometry(.12,.025,3),sm);s.position.set(0,.04,z);scene.add(s)}
- const bm=new THREE.MeshStandardMaterial({color:0x596675,roughness:.9});
- for(let i=0;i<14;i++){const h=4+Math.random()*5,side=i%2?1:-1,b=new THREE.Mesh(new THREE.BoxGeometry(3,h,4),bm);
-  b.position.set(side*(7+Math.random()*2),h/2,-30+i*5);b.castShadow=b.receiveShadow=true;scene.add(b)}
- camera.position.set(0,3,-6);
- addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
- animate();
-}
-
-/* ===== PERSONAJ ===== */
-function loadGltf(g){
- if(!gltfCache.has(g))gltfCache.set(g,new Promise((ok,no)=>loader.load(MODELS[g],ok,undefined,no)));
- return gltfCache.get(g);
-}
-function prepare(obj){
- const root=new THREE.Group();obj.updateMatrixWorld(true);
- let box=new THREE.Box3().setFromObject(obj);const size=box.getSize(new THREE.Vector3());
- if(size.y<.01)throw new Error('Model o‘lchami noto‘g‘ri');
- obj.scale.setScalar(1.8/size.y);obj.updateMatrixWorld(true);
- box=new THREE.Box3().setFromObject(obj);const c=box.getCenter(new THREE.Vector3());
- obj.position.x-=c.x;obj.position.z-=c.z;obj.position.y-=box.min.y;
- obj.traverse(ch=>{if(ch.isMesh){ch.castShadow=true;ch.receiveShadow=true}});
- root.add(obj);return root;
-}
-function tagSprite(name,color){
- const cn=document.createElement('canvas');cn.width=256;cn.height=64;const x=cn.getContext('2d');
- x.textAlign='center';x.font='bold 30px system-ui,sans-serif';x.shadowColor='#000';x.shadowBlur=6;x.fillStyle=color;x.fillText(name,128,42);
- const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cn),transparent:true,depthWrite:false,fog:false}));
- sp.scale.set(1.6,.4,1);sp.position.y=2.15;return sp;
-}
-class Char{
- constructor(gltf,name,g,isMe){
-  const clone=SkeletonUtils.clone(gltf.scene);
-  this.root=prepare(clone);this.acts={};this.cur=null;this.lock=0;this.name=name;this.g=g;
-  this.moving=false;this.running=false;this.speed=0;this.vx=0;this.vz=0;
-  this.mixer=new THREE.AnimationMixer(clone);
-  gltf.animations.forEach(clip=>{
-   const n=clip.name.toLowerCase(),a=this.mixer.clipAction(clip);
-   if(n.includes('walk'))this.acts.walk=a;else if(n.includes('run')&&!this.acts.run)this.acts.run=a;
-   else if(n.includes('idle'))this.acts.idle=a;
-   else if(n.includes('punch')||n.includes('hit')||n.includes('attack')){this.acts.punch=a;a.setLoop(THREE.LoopOnce,1);a.clampWhenFinished=true}
-  });
-  this.root.add(tagSprite(name,isMe?'#00eaff':'#ff62d5'));
-  this.bubble=document.createElement('div');this.bubble.className='bubble'+(isMe?'':' o');
-  this.bubble.innerHTML='<b></b><span></span>';this.bubble.firstChild.textContent=name;$('bubbles').appendChild(this.bubble);
-  this.bt=0;scene.add(this.root);this.play('idle');
- }
- play(n){
-  const next=this.acts[n];
-  if(!next){if(n==='idle'&&this.cur){this.cur.fadeOut(.25);this.cur=null}return}
-  if(this.cur===next)return;
-  const f=.22;
-  if(this.cur)this.cur.fadeOut(f);
-  next.reset().fadeIn(f).play();this.cur=next;
- }
- act(n,ms){if(!this.acts[n])return;this.lock=ms/1000;this.play(n)}
- say(t){this.bubble.lastChild.textContent=t;this.bubble.style.display='block';this.bt=8}
- update(dt){
-  if(this.lock>0)this.lock-=dt;
-  else{
-   let n=this.moving?(this.running?'run':'walk'):'idle';
-   if(n==='run'&&!this.acts.run)n='walk';
-   this.play(n);
-   if(this.acts.walk)this.acts.walk.timeScale=(n==='walk'&&this.running)?1.8:THREE.MathUtils.clamp(this.speed/WALK,.7,1.3);
-   if(this.acts.run)this.acts.run.timeScale=THREE.MathUtils.clamp(this.speed/RUN,.8,1.2);
-  }
-  this.mixer.update(dt);
-  if(this.bt>0){this.bt-=dt;if(this.bt<=0)this.bubble.style.display='none'}
- }
- dispose(){scene.remove(this.root);this.bubble.remove()}
-}
-function placeBubble(ch){
- if(ch.bt<=0)return;const p=ch.root.position.clone();p.y+=2.5;p.project(camera);
- if(p.z>1){ch.bubble.style.opacity=0;return}ch.bubble.style.opacity=1;
- const x=THREE.MathUtils.clamp((p.x*.5+.5)*innerWidth,110,innerWidth-110),y=(-p.y*.5+.5)*innerHeight;
- ch.bubble.style.left=x+'px';ch.bubble.style.top=Math.max(ch.bubble.offsetHeight+50,y)+'px';
-}
-
-/* ===== LOG (faqat tizim xabarlari) ===== */
-function say(t,c){const d=document.createElement('div');d.textContent=t;if(c)d.className=c;$('log').appendChild(d);
- while($('log').children.length>4)$('log').firstChild.remove();setTimeout(()=>d.remove(),6000)}
-
-/* ===== BOSHQARUV ===== */
-function toggleChat(open){
- const p=$('chatPanel'),o=open===undefined?!p.classList.contains('open'):open;
- p.classList.toggle('open',o);$('chatBtn').classList.toggle('on',o);
- if(o)setTimeout(()=>$('messageInput').focus(),60);else $('messageInput').blur();
-}
-function doPunch(){
- sndPunch();if(!me||me.lock>0)return;me.act('punch',800);netSend({k:'a',a:'punch'});
-}
-function createControls(){
- const joy=$('joystick'),stick=$('stick');
- function upd(e){const r=joy.getBoundingClientRect();let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);
-  const max=r.width*.3,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max}
-  stick.style.left=`calc(50% + ${dx}px)`;stick.style.top=`calc(50% + ${dy}px)`;joyDir.set(dx/max,dy/max);
-  joy.classList.toggle('run',joyDir.length()>=RUN_AT)}
- function reset(e){if(e&&joystickPointer!==e.pointerId)return;joyDir.set(0,0);stick.style.left='50%';stick.style.top='50%';joystickPointer=null;joy.classList.remove('run')}
- joy.addEventListener('pointerdown',e=>{joystickPointer=e.pointerId;joy.setPointerCapture(e.pointerId);upd(e)});
- joy.addEventListener('pointermove',e=>{if(joystickPointer===e.pointerId)upd(e)});
- joy.addEventListener('pointerup',reset);joy.addEventListener('pointercancel',reset);
- addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true});
- addEventListener('keyup',e=>{keys[e.code]=false});
- $('messageInput').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')sendChat();if(e.key==='Escape')toggleChat(false)});
- $('send').onclick=sendChat;
- $('chatBtn').onclick=()=>toggleChat();
- $('punch').onclick=doPunch;
- $('ptt').onclick=()=>VO.on?pttUp():pttDown();
- const cv=renderer.domElement;
- cv.addEventListener('pointerdown',e=>{if(camPointer!==null)return;camPointer=e.pointerId;lastX=e.clientX;cv.setPointerCapture(e.pointerId)});
- cv.addEventListener('pointermove',e=>{if(camPointer!==e.pointerId)return;cameraAngle-=(e.clientX-lastX)*.005;lastX=e.clientX});
- const end=e=>{if(camPointer===e.pointerId)camPointer=null};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
-}
-const shortest=a=>Math.atan2(Math.sin(a),Math.cos(a));
-function updateMe(dt){
- if(!me)return;
- const jl=joyDir.length();
- let ix=joyDir.x,iy=-joyDir.y;
- if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;
- if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;
- const len=Math.hypot(ix,iy),has=len>.12&&me.lock<=0;
- let tvx=0,tvz=0;
- if(has){
-  const nx=ix/len,ny=iy/len;
-  const fx=-Math.sin(cameraAngle),fz=Math.cos(cameraAngle),rx=-fz,rz=fx;
-  const wx=fx*ny+rx*nx,wz=fz*ny+rz*nx,wl=Math.hypot(wx,wz)||1;
-  // quvvat: joystick bo'lsa tortilish darajasi, klaviatura bo'lsa Shift = yugurish
-  const power=jl>.12?Math.min(1,len):((keys.ShiftLeft||keys.ShiftRight)?1:.6);
-  const sp=power>=RUN_AT?RUN:Math.max(.9,WALK*power/RUN_AT);
-  tvx=wx/wl*sp;tvz=wz/wl*sp;
- }
- const a=1-Math.exp(-dt*(has?7:11));            // tezlanish / sekinlashish silliq
- me.vx+=(tvx-me.vx)*a;me.vz+=(tvz-me.vz)*a;
- const p=me.root.position,spd=Math.hypot(me.vx,me.vz);
- p.x=THREE.MathUtils.clamp(p.x+me.vx*dt,-45,45);p.z=THREE.MathUtils.clamp(p.z+me.vz*dt,-45,45);
- me.speed=spd;me.moving=spd>.35;
- me.running=me.running?spd>3.6:spd>4.2;          // histerezis: animatsiya tez almashmasin
- if(spd>.3)me.root.rotation.y+=shortest(Math.atan2(me.vx,me.vz)-me.root.rotation.y)*Math.min(1,dt*10);
- if(me.moving&&me.lock<=0){stepT+=dt;if(stepT>1.15/Math.max(1.2,spd)){stepT=0;sndStep(me.running?1.15:1)}}else stepT=.25;
- me.update(dt);
-}
-function updateCamera(dt){
- if(!me)return;const c=me.root.position.clone();
- const wantD=me.running?6.6:5.8;camDist+=(wantD-camDist)*Math.min(1,dt*3);
- const want=c.clone().add(new THREE.Vector3(Math.sin(cameraAngle)*camDist,2.6+(camDist-5.8)*.3,-Math.cos(cameraAngle)*camDist));
- camera.position.lerp(want,1-Math.exp(-dt*6));camera.lookAt(c.x,1.1,c.z);
-}
-function updateRemotes(dt){
- const k=1-Math.exp(-dt*9),now=Date.now();
- remotes.forEach((r,id)=>{
-  if(now-r.seen>7000){if(r.char)r.char.dispose();remotes.delete(id);say(r.name+' chiqib ketdi','sys');$('cn').textContent=remotes.size+1;return}
-  const c=r.char;if(!c)return;const p=c.root.position,ox=p.x,oz=p.z;
-  p.x+=(r.tx-p.x)*k;p.z+=(r.tz-p.z)*k;c.root.rotation.y+=shortest(r.tyaw-c.root.rotation.y)*k;
-  const inst=Math.hypot(p.x-ox,p.z-oz)/Math.max(dt,.001);
-  r.sp=(r.sp||0)+(inst-(r.sp||0))*Math.min(1,dt*5);
-  c.speed=r.sp;c.moving=r.sp>.45;c.running=c.running?r.sp>3.4:r.sp>4.2;
-  if(c.moving&&me){r.st=(r.st||0)-dt;if(r.st<=0){r.st=1.15/Math.max(1.2,r.sp);const d=p.distanceTo(me.root.position);if(d<16)sndStep(.6*(1-d/16))}}
-  c.update(dt);
- });
-}
-
-/* ===== TARMOQ (MQTT) ===== */
-const loadJs=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.appendChild(e)});
-let mqttClient=null;
-function netSend(o){try{if(mqttClient&&mqttClient.connected)mqttClient.publish(net.base,JSON.stringify({...o,id:myInfo.id}))}catch(e){}}
-const fin=v=>typeof v==='number'&&isFinite(v);
-async function connect(){
- if(!window.mqtt){try{await loadJs('https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js')}catch(e){try{await loadJs('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js')}catch(e2){say('Tarmoq kutubxonasi yuklanmadi: yolg‘iz rejim','sys');return}}}
- const code=(location.hash.match(/r=([a-z0-9]{4,12})/)||[])[1]||'olam';
- net={base:'taiman-gta-v1/'+code};
- const B=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081'];
- let bi=0,fails=0,up=false;
- function go(){
-  const u=B[bi%B.length];let ok=false,dead=false;
-  const c=mqtt.connect(u,{clientId:'tg'+myInfo.id+bi,keepalive:30,reconnectPeriod:2000,connectTimeout:6000,clean:true,
-   will:{topic:net.base,payload:JSON.stringify({k:'l',id:myInfo.id}),qos:0}});
-  mqttClient=c;
-  const bad=()=>{if(ok||dead)return;dead=true;clearTimeout(to);try{c.end(true)}catch(e){}bi++;fails++;setTimeout(go,Math.min(6000,700*fails))};
-  const to=setTimeout(bad,8000);
-  c.on('connect',()=>{ok=true;clearTimeout(to);fails=0;c.subscribe(net.base,err=>{if(err)return;up=true;$('chip').classList.remove('off');say('Onlayn olamga ulandingiz ','sys');sendPresence()})});
-  c.on('message',(t,m)=>{try{const d=JSON.parse(m.toString());if(d&&typeof d==='object'&&d.id&&d.id!==myInfo.id)handle(d)}catch(e){}});
-  c.on('close',()=>{if(!ok)bad();else if(up){up=false;$('chip').classList.add('off');say('Aloqa uzildi, qayta ulanmoqda…','sys')}});
-  c.on('error',()=>{if(!ok)bad()});
- }
- go();
- setInterval(sendPresence,110);
- addEventListener('pagehide',()=>netSend({k:'l'}));
-}
-let lastSent='';
-function sendPresence(){
- if(!me)return;const p=me.root.position;
- const o={k:'p',n:myInfo.name,g:myInfo.g,x:+p.x.toFixed(2),z:+p.z.toFixed(2),r:+me.root.rotation.y.toFixed(2)};
- const s=o.x+'|'+o.z+'|'+o.r;
- // joyida turgan bo'lsa kamroq yuboramiz (har ~1s heartbeat)
- if(s===lastSent&&performance.now()-(sendPresence.t||0)<1000)return;
- lastSent=s;sendPresence.t=performance.now();netSend(o);
-}
-function handle(d){
- const id=String(d.id);
- if(d.k==='p'){
-  if(!fin(d.x)||!fin(d.z))return;
-  let r=remotes.get(id);
-  if(!r){r={char:null,pending:false,name:String(d.n||'Taiman').slice(0,16),g:d.g===1?1:0,tx:d.x,tz:d.z,tyaw:d.r||0,seen:Date.now()};remotes.set(id,r)}
-  r.seen=Date.now();r.tx=d.x;r.tz=d.z;r.tyaw=fin(d.r)?d.r:0;
-  if(!r.char&&!r.pending){
-   r.pending=true;
-   loadGltf(r.g).then(gl=>{
-    if(!remotes.has(id))return;r.char=new Char(gl,r.name,r.g,false);r.char.root.position.set(r.tx,0,r.tz);
-    say(r.name+' olamga kirdi ','sys');tone(880,.15,.1,'sine',1200);$('cn').textContent=remotes.size+1;
-   }).catch(()=>{r.pending=false});
-  }
- }else if(d.k==='l'){const r=remotes.get(id);if(r){if(r.char)r.char.dispose();remotes.delete(id);say(r.name+' chiqib ketdi','sys');$('cn').textContent=remotes.size+1}}
- else if(d.k==='c'){const r=remotes.get(id),t=String(d.t||'').slice(0,140);if(!r||!t)return;sndMsg();
-  if(r.char)r.char.say(t);else say(r.name+': '+t)}   // faqat bitta joyda: personaj tepasida
- else if(d.k==='a'){const r=remotes.get(id);if(!r||!r.char)return;
-  if(d.a==='punch'){r.char.act('punch',800);if(me&&r.char.root.position.distanceTo(me.root.position)<20)sndPunch()}}
- else if(d.k==='v'){playVoice(id,d)}
-}
-
-/* ===== CHAT ===== */
-let chatT=0;
-function sendChat(){
- const inp=$('messageInput'),t=inp.value.trim().slice(0,140);
- if(!t||!me||performance.now()-chatT<500)return;chatT=performance.now();inp.value='';
- initAudio();sndSend();me.say(t);netSend({k:'c',t});   // faqat personaj tepasida ko'rinadi
- toggleChat(false);
-}
-
-/* ===== OVOZLI RATSIYA (bir marta bosish = yoqish, yana bosish = o'chirish) ===== */
-const VO={on:false,stream:null,mime:'',tmr:0,rec:null,q:new Map(),talk:new Map()};
-async function micInit(){
- if(VO.stream)return true;
- try{VO.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-  VO.mime=['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||'';return true}
- catch(e){say('Mikrofon ishlamadi: ruxsat bering (sahifa HTTPS da ochilishi kerak)','sys');return false}
-}
-function sendVoice(blob,last){const rd=new FileReader();rd.onload=()=>{const b=String(rd.result).split(',')[1];if(b)netSend({k:'v',b,e:last?1:0})};rd.readAsDataURL(blob)}
-function seg(){
- if(!VO.on)return;const ch=[];let r;
- try{r=new MediaRecorder(VO.stream,VO.mime?{mimeType:VO.mime,audioBitsPerSecond:24000}:{audioBitsPerSecond:24000})}
- catch(e){VO.on=false;$('ptt').classList.remove('on');say('Ovoz yozish bu qurilmada ishlamaydi','sys');return}
- r.ondataavailable=e=>{if(e.data&&e.data.size)ch.push(e.data)};
- r.onstop=()=>{if(ch.length)sendVoice(new Blob(ch,{type:r.mimeType||VO.mime}),!VO.on)};
- r.start();VO.rec=r;VO.tmr=setTimeout(()=>{try{r.stop()}catch(e){}seg()},1000);
-}
-async function pttDown(){
- initAudio();if(VO.on||!started)return;
- if(!mqttClient||!mqttClient.connected){say('Ratsiya uchun onlayn bo‘ling','sys');return}
- VO.on=true;$('ptt').classList.add('on');
- if(!await micInit()){VO.on=false;$('ptt').classList.remove('on');return}
- if(!VO.on)return;sndPtt();seg();
-}
-function pttUp(){
- if(!VO.on)return;VO.on=false;$('ptt').classList.remove('on');clearTimeout(VO.tmr);
- try{VO.rec&&VO.rec.state!=='inactive'&&VO.rec.stop()}catch(e){}sndPtt();
-}
-function playVoice(id,d){
- if(!AC||muted||typeof d.b!=='string'||d.b.length>90000)return;
- let ab;try{const bin=atob(d.b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);ab=u.buffer}catch(e){return}
- new Promise((ok,no)=>AC.decodeAudioData(ab,ok,no)).then(buf=>{
-  const st=VO.q.get(id)||{next:0};VO.q.set(id,st);const now=AC.currentTime;
-  if(st.next<now-.05){noise('bandpass',2500,.09,.2);st.next=now+.1}
-  const s=AC.createBufferSource();s.buffer=buf;s.connect(master);s.start(st.next);st.next+=buf.duration;
-  VO.talk.set(id,performance.now()+(st.next-now)*1000+300);
- }).catch(()=>{});
-}
-function updRadio(){
- const now=performance.now(),nm=[];
- VO.talk.forEach((t,id)=>{if(t>now){const r=remotes.get(id);nm.push(r?r.name:'Taiman')}});
- $('radio').classList.toggle('act',VO.on||nm.length>0);
- $('radio').textContent=VO.on?' Mikrofon yoniq — o‘chirish uchun yana bosing':nm.length?' '+nm.join(', ')+' gapirmoqda':' Ratsiya: o‘chiq';
-}
-
-/* ===== KIRISH ===== */
-let selG=0;
-try{$('nick').value=localStorage.getItem('tg_n')||'';selG=+localStorage.getItem('tg_g')||0}catch(e){}
-const upG=()=>document.querySelectorAll('#gd button').forEach(b=>b.classList.toggle('s',+b.dataset.g===selG));upG();
-document.querySelectorAll('#gd button').forEach(b=>b.onclick=()=>{selG=+b.dataset.g;upG()});
-init();createControls();
-$('go').onclick=async()=>{
- const nk=$('nick').value.trim().slice(0,16);
- myInfo.name=nk||('Taiman'+Math.floor(100+Math.random()*900));myInfo.g=selG;
- try{localStorage.setItem('tg_n',nk);localStorage.setItem('tg_g',String(selG))}catch(e){}
- initAudio();$('go').disabled=true;$('msg').textContent='Yuklanmoqda...';
- try{
-  const gl=await loadGltf(selG);
-  me=new Char(gl,myInfo.name,selG,true);me.root.position.set((Math.random()-.5)*6,0,(Math.random()-.5)*6);
- }catch(e){console.error(e);$('msg').textContent='Model topilmadi: '+MODELS[selG]+' (index bilan bir papkada bo‘lsin)';$('go').disabled=false;return}
- $('intro').style.display='none';started=true;tone(660,.15,.12,'sine',990);
- say('Salom, '+myInfo.name+'!','sys');connect();
-};
-
-/* ===== SIKL ===== */
-function animate(){
- requestAnimationFrame(animate);
- const dt=Math.min(clock.getDelta(),.05);
- updateMe(dt);updateRemotes(dt);updateCamera(dt);
- if(me)placeBubble(me);remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
- updRadio();
- renderer.render(scene,camera);
-}
-</script>
+<script type="module" src="main.js"></script>
 </body>
 </html>
