@@ -206,6 +206,8 @@ function tagSprite(name,color,rank){
 }
 const _p0=new THREE.Vector3(),_p1=new THREE.Vector3(),_p2=new THREE.Vector3(),_t1=new THREE.Vector3(),_t2=new THREE.Vector3(),_a=new THREE.Vector3(),_Z=new THREE.Vector3(0,0,1),_q1=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_q4=new THREE.Quaternion(),_q5=new THREE.Quaternion(),_q6=new THREE.Quaternion(),_q7=new THREE.Quaternion(),_qP=new THREE.Quaternion();
 // SALTO (front flip): prototipdagi vaqt oralig'i va suyak nomlari
+// SIDE FLIP sozlamalari (prototipdan)
+const FLIP_SIDE=1,FLIP_A0=45,FLIP_A1=90,FLIP_TURN=.2,FLIP_SPD_S=4,FLIP_SPD_F=3.5;
 const FLIP_DUR=1.5,_fe=new THREE.Euler(),_fq=new THREE.Quaternion(),
  FLIP_BONES={hips:'Hips',spine:'Spine',spine01:'Spine01',spine1:'Spine01',spine02:'Spine02',spine2:'Spine02',leftupleg:'LeftUpLeg',rightupleg:'RightUpLeg',leftleg:'LeftLeg',rightleg:'RightLeg',leftarm:'LeftArm',rightarm:'RightArm',leftforearm:'LeftForeArm',rightforearm:'RightForeArm'};
 class Char{
@@ -240,7 +242,7 @@ class Char{
    if(g.length>=2){const m=g.reduce((t,L)=>t+L.x,0)/g.length;g.forEach(L=>L.side=L.x>=m?1:-1)}}
   clone.traverse(o=>{if(o.isBone&&/foot|toe|ankle/.test(o.name.toLowerCase()))this.feet.push(o)});if(this.feet.length)this.h0=this.feetMin();
   // salto uchun: tayanch (rest) holat va kerakli suyaklar (prototipdagi bones/restPose)
-  this.flipT=-1;this.fy=0;this.fb={};this.fr=[];this.rq=new Map();
+  this.flipT=-1;this.flipK='f';this.flipYaw0=0;this.fdx=0;this.fdz=1;this.fy=0;this.fb={};this.fr=[];this.rq=new Map();
   clone.traverse(o=>{if(!o.isBone)return;this.fr.push({b:o,q:o.quaternion.clone(),p:o.position.clone()});
    const k=FLIP_BONES[o.name.toLowerCase().replace(/^mixamorig/,'').replace(/[^a-z0-9]/g,'')];if(k&&!this.fb[k]){this.fb[k]=o;this.rq.set(o,o.quaternion.clone())}});
   this.tagCol=isMe?'#00eaff':'#ff62d5';this.rank='';this.tag=tagSprite(name,this.tagCol);this.root.add(this.tag);
@@ -327,17 +329,28 @@ class Char{
  }
  setPose(q){this.pose=q|0}
  // ===== SALTO (FRONT FLIP) =====
- flip(){
+ // kind: 'f' = front flip (oldinga), 's' = side flip (yonga). Ikkalasi ham yugurish/qarash yo'nalishida oldinga siljiydi
+ flip(kind){
   if(this.flipT>=0||this.pose)return false;
+  this.flipK=kind==='s'?'s':'f';this.flipYaw0=this.root.rotation.y;this.fdx=Math.sin(this.flipYaw0);this.fdz=Math.cos(this.flipYaw0);
   this.flipT=0;this.fy=0;this.mixer.stopAllAction();this.cur=null;this.mod.clear();this.wv=0;this.wvw=0;this.pw=0;this.tag.visible=false;return true;
  }
+ // sakrash paytidagi oldinga tezlik (m/s): havo fazasida sinus shaklida
+ flipSpeed(){const t=this.flipT,s=this.flipK==='s',a=s?FLIP_TURN:.18;return(t>a&&t<.85)?(s?FLIP_SPD_S:FLIP_SPD_F)*Math.sin((t-a)/(.85-a)*Math.PI):0}
  // prototipdagi rotateBone: tayanch kvaternion * Euler(XYZ)
  rb(n,x,y,z){const b=this.fb[n];if(!b)return;_fq.setFromEuler(_fe.set(x||0,y||0,z||0,'XYZ'));b.quaternion.copy(this.rq.get(b)).multiply(_fq)}
  flipRest(){for(const r of this.fr){r.b.quaternion.copy(r.q);r.b.position.copy(r.p)}}
- // prototipdagi animateFrontFlip(t): 1) tayyorlanish 2) sakrash 3) g'ujanak + 360 aylanish 4) oyoqni yozib qo'nish
+ // prototipdagi animateFrontFlip / animateSideFlip: 1) tayyorlanish 2) sakrash 3) g'ujanak + 360 aylanish 4) oyoqni yozib qo'nish
  flipPose(t){
-  const H=1.8,R=(n,x,y,z)=>this.rb(n,x,y,z);let a=0,off=0;
+  const H=1.8,h=H/2,R=(n,x,y,z)=>this.rb(n,x,y,z),side=this.flipK==='s',K=side?FLIP_SIDE:1;let a=0,off=0;
   this.flipRest();
+  if(side){ // butun personajning burilishi: 0 -> 45 -> 90 -> 0
+   const sm=x=>{x=x<0?0:x>1?1:x;return x*x*(3-2*x)};let yaw;
+   if(t<FLIP_TURN)yaw=FLIP_A0*sm(t/FLIP_TURN);
+   else if(t<.78)yaw=FLIP_A0+(FLIP_A1-FLIP_A0)*sm((t-FLIP_TURN)/(.78-FLIP_TURN));
+   else yaw=FLIP_A1*(1-sm((t-.78)/.22));
+   this.root.rotation.y=this.flipYaw0+FLIP_SIDE*yaw*Math.PI/180;
+  }
   if(t<.18){
    const b=Math.sin(t/.18*Math.PI/2);
    R('Hips',.25*b);R('Spine',.12*b);R('LeftArm',2.4*b,0,-.1);R('RightArm',2.4*b,0,.1);
@@ -346,26 +359,31 @@ class Char{
    R('Hips',.25*j);R('Spine',.3*j);R('LeftArm',1.4*j,0,-.2);R('RightArm',1.4*j,0,.2);
    off=H*.65*j;
   }else if(t<.78){
-   const p=(t-.35)/.43;a=Math.PI*2*p;
-   R('Hips',.35);R('Spine',.5);R('Spine01',.35);R('Spine02',.25);
-   R('LeftUpLeg',-1.65);R('RightUpLeg',-1.65);R('LeftLeg',2);R('RightLeg',2);
-   R('LeftArm',1.5,0,-.3);R('RightArm',1.5,0,.3);R('LeftForeArm',.7);R('RightForeArm',.7);
+   const p=(t-.35)/.43;a=Math.PI*2*p*K;
+   if(side){
+    R('Hips',.55);R('Spine',.25);R('Spine01',.35);R('Spine02',.45);
+    R('LeftUpLeg',-1.65,0,-.8);R('RightUpLeg',-1.65,0,.8);R('LeftLeg',2);R('RightLeg',2);
+    R('LeftArm',1.5,0,-.1);R('RightArm',1.5,0,.1);R('LeftForeArm',.27);R('RightForeArm',.17);
+   }else{
+    R('Hips',.35);R('Spine',.5);R('Spine01',.35);R('Spine02',.25);
+    R('LeftUpLeg',-1.65);R('RightUpLeg',-1.65);R('LeftLeg',2);R('RightLeg',2);
+    R('LeftArm',1.5,0,-.3);R('RightArm',1.5,0,.3);R('LeftForeArm',.7);R('RightForeArm',.7);
+   }
    off=H*(.65+Math.sin(p*Math.PI)*.15);
   }else{
-   const p=Math.min((t-.78)/.22,1),k=1-p;a=Math.PI*2;
+   const p=Math.min((t-.78)/.22,1),k=1-p;a=Math.PI*2*K;
    R('Hips',.15*k);R('LeftUpLeg',-1.15*k);R('RightUpLeg',-1.15*k);R('LeftLeg',1.35*k);R('RightLeg',1.35*k);
    R('LeftArm',1.4*k,0,-.2);R('RightArm',1.4*k,0,.2);R('LeftForeArm',.7*k);R('RightForeArm',.7*k);
    off=H*.65*k;
   }
-  // gavda markazi (H/2) atrofida aylanish: pivot burchak + siljish bilan; root (fizika) joyida qoladi
-  const h=H/2;
-  this.pivot.rotation.set(a,0,0);
-  this.pivot.position.set(0,off+h-h*Math.cos(a),-h*Math.sin(a));
+  // gavda markazi (H/2) atrofida aylanish: front = X o'qi, side = Z o'qi (pivot burchak + siljish)
+  if(side){this.pivot.rotation.set(0,0,a);this.pivot.position.set(h*Math.sin(a),off+h-h*Math.cos(a),0)}
+  else{this.pivot.rotation.set(a,0,0);this.pivot.position.set(0,off+h-h*Math.cos(a),-h*Math.sin(a))}
   this.fy=off;
  }
  flipEnd(){
   this.flipRest();
-  this.pivot.rotation.set(0,0,0);this.pivot.position.set(0,0,0);this.tag.visible=true;this.flipT=-1;this.fy=0;
+  this.pivot.rotation.set(0,0,0);this.pivot.position.set(0,0,0);this.tag.visible=true;this.flipT=-1;this.fy=0;if(this.flipK==='s')this.root.rotation.y=this.flipYaw0;
   // oddiy animatsiyaga (idle/yurish/yugurish) qaytamiz; shu kadrning o'zida mixer qayta yozadi
   const a=this.acts[this.moving?(this.running&&this.acts.run?'run':'walk'):'idle']||this.acts.idle;
   if(a){a.reset().play();this.cur=a}else this.cur=null;
@@ -504,9 +522,9 @@ function toggleChat(open){
  if(o)setTimeout(()=>$('messageInput').focus(),60);else $('messageInput').blur();
 }
 function doPunch(){if(!me||me.pose||me.flipT>=0||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
-function doFlip(){
+function doFlip(kind){
  if(!me||!started||me.flipT>=0||me.pose||seat||me.lock>0||!me.grounded||document.body.classList.contains('modal'))return;
- initAudio();if(!me.flip())return;sndJump(1);netSend({k:'a',a:'flip'});
+ initAudio();if(!me.flip(kind))return;sndJump(1);netSend({k:'a',a:kind==='s'?'sflip':'flip'});
 }
 function createControls(){
  const joy=$('joystick'),stick=$('stick');
@@ -519,14 +537,15 @@ function createControls(){
  joy.addEventListener('pointerdown',e=>{jr=null;joystickPointer=e.pointerId;joy.setPointerCapture(e.pointerId);upd(e)});
  joy.addEventListener('pointermove',e=>{if(joystickPointer===e.pointerId)upd(e)});
  joy.addEventListener('pointerup',reset);joy.addEventListener('pointercancel',reset);
- addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(e.code==='KeyE'&&!e.repeat)ctxPress();if(e.code==='KeyF'&&!e.repeat)doFlip();if(e.code==='Space'){e.preventDefault();if(!e.repeat)jumpReq=true}});
+ addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(e.code==='KeyE'&&!e.repeat)ctxPress();if(e.code==='KeyF'&&!e.repeat)doFlip('f');if(e.code==='KeyG'&&!e.repeat)doFlip('s');if(e.code==='Space'){e.preventDefault();if(!e.repeat)jumpReq=true}});
  addEventListener('keyup',e=>{keys[e.code]=false});
  $('messageInput').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')sendChat();if(e.key==='Escape')toggleChat(false)});
  $('send').onclick=sendChat;
  $('chatBtn').onclick=()=>toggleChat();
  $('punch').addEventListener('pointerdown',e=>{e.preventDefault();doPunch()});
  $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpReq=true});
- $('flipBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();doFlip()});
+ $('flipBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();doFlip('f')});
+ $('sideBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();doFlip('s')});
  $('ctxBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();ctxPress()});
  $('ptt').onclick=()=>VO.on?pttUp():pttDown();
  const cv=renderer.domElement;
@@ -564,7 +583,10 @@ function updateMe(dt){
  if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;
  const len=Math.hypot(ix,iy);
  // salto davomida joyida turadi: yurish/sakrash/fizika to'xtatiladi, tugagach boshqaruv o'zi qaytadi
- if(me.flipT>=0){jumpReq=false;me.vx=me.vz=me.vy=0;me.speed=0;me.moving=me.running=me.air=false;me.grounded=true;me.jc=0;stepT=.25;me.update(dt);return}
+ if(me.flipT>=0){ // oldinga siljish: oddiy fizika (to'qnashuv, zamin) orqali, yo'nalish flip boshidagi yo'nalish
+  jumpReq=false;const fs=me.flipSpeed();me.vx=me.fdx*fs;me.vz=me.fdz*fs;
+  body(me,me.vx,me.vz,fs>0,dt,false);
+  me.moving=me.running=false;me.speed=0;stepT=.25;me.update(dt);return}
  if(me.pose&&me.lock>0){seat=null;dAt=null;me.setPose(0)}     // yiqilsak yoki jang boshlansa turib ketamiz
  if(seat){seatTick(dt,len);return}
  if(me.pose===3&&(len>.3||jumpReq||(dAt&&Math.hypot(me.root.position.x-dAt.x,me.root.position.z-dAt.z)>4))){me.setPose(0);dAt=null;jumpReq=false}
@@ -673,7 +695,8 @@ function handle(d){
  else if(d.k==='a'){const r=remotes.get(id);if(!r||!r.char)return;
   if(d.a==='punch'){r.char.punch(d.c|0);if(me&&r.char.root.position.distanceTo(me.root.position)<20)sndPunch()}
   else if(d.a==='wave')r.char.wave(2)
-  else if(d.a==='flip')r.char.flip()}
+  else if(d.a==='flip')r.char.flip('f')
+  else if(d.a==='sflip')r.char.flip('s')}
  else if(d.k==='r'||d.k==='b'){if(W)W.onNet(id,d)}
  else if(d.k==='h'||d.k==='f'||d.k==='t'||d.k==='lv'){if(CB)CB.onNet(id,d)}
  else if(d.k==='v'){playVoice(id,d)}

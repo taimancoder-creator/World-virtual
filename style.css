@@ -155,8 +155,12 @@ body.chatting .ctx,body.modal .ctx{display:none}
 @media(max-height:480px){.ctx{bottom:calc(var(--sb) + 10px + var(--bt)*2 + 16px)}.rbox{flex-direction:row;flex-wrap:wrap;justify-content:center}.ph{margin:4px 10px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-/* ---------- SALTO tugmasi (SAKRA tugmasining chap tomonida) ---------- */
+/* ---------- SALTO tugmalari: FRONT va SIDE (SAKRA tugmasining chap tomonida) ---------- */
 #flipBtn{position:fixed;z-index:20;right:calc(var(--sr) + 16px + var(--bt)*2 + 22px);bottom:calc(var(--sb) + 22px);background:linear-gradient(165deg,#ff7fd9,#a53ad6);border-color:#ffd0f3;color:#fff}
 @media(max-height:480px){#flipBtn{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px)}}
 body.chatting #flipBtn{opacity:0;pointer-events:none}
 body.modal #flipBtn{opacity:.3;pointer-events:none}
+#sideBtn{position:fixed;z-index:20;right:calc(var(--sr) + 16px + var(--bt)*3 + 32px);bottom:calc(var(--sb) + 22px);background:linear-gradient(165deg,#ffb86b,#e0562a);border-color:#ffe1c0;color:#fff}
+@media(max-height:480px){#sideBtn{right:calc(var(--sr) + 16px + var(--bt)*3 + 26px);bottom:calc(var(--sb) + 10px)}}
+body.chatting #sideBtn{opacity:0;pointer-events:none}
+body.modal #sideBtn{opacity:.3;pointer-events:none}
