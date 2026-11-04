@@ -3,12 +3,12 @@ import {makeTree,buildHouse,buildBank,buildBar,buildPark} from './buildings.js';
 // Dunyo: landshaft, binolar, orollar, portal, uy, poyga, shahar qurish. main.js dan initWorld(C) bilan ulanadi.
 export function initWorld(C){
  const {scene,solids,mat,put,slab,toast,tone,P,netSend,addScore,addMoney}=C,R=Math.random,coins=[],spin=[],pads=[],clouds=[];
- let wT=0,cd=0,asking=false;const houses=[];
+ let wT=0,cd=0,asking=false,syncT=0;const bk=new Set(),mine=[];const houses=[];
  const flat=(w,d,c,x,z,y=.03)=>{const m=put(new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat(c)),x,y,z,false);m.rotation.x=-Math.PI/2;m.receiveShadow=true;return m};
  const glow=(c,o)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false});
  const lbl=(t,col,w,x,y,z)=>{const cn=document.createElement('canvas');cn.width=512;cn.height=128;const g=cn.getContext('2d');g.textAlign='center';g.font='bold 72px system-ui';g.shadowColor=col;g.shadowBlur=20;g.fillStyle=col;g.fillText(t,256,90);
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cn),transparent:true,depthWrite:false,fog:false}));s.scale.set(w,w/4,1);s.position.set(x,y,z);scene.add(s)};
- const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam},tree=makeTree(K);
+ const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),view:C.view,onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam},tree=makeTree(K);
  const coin=(x,y,z,v=25,s=5)=>{const m=put(new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.07,20),mat(0xf2b92a,0x9a6a00,.6)),x,y,z,false);m.rotation.x=Math.PI/2;coins.push({m,x,y,z,v,s,t:0})};
  // landshaft: yo'llar, suv, tog'lar, bulutlar, daraxtlar
  flat(8,180,0x2b2f36,0,0,.02);flat(180,8,0x2b2f36,0,0,.021);
@@ -49,22 +49,26 @@ export function initWorld(C){
  // shahar qurish va maqomlar
  const built=[],mk=[
   {n:'Park',p:500,f:(x,z)=>buildPark(K,x,z)},
-  {n:'Bar',p:1500,f:(x,z)=>buildBar(K,x,z)},
+  {n:'Bar',p:1500,bar:true,f:(x,z)=>buildBar(K,x,z)},
   {n:'Bank',p:5000,f:(x,z)=>buildBank(K,x,z)},
   {n:'Uy',p:3000,f:(x,z)=>{house(x,z,false)}},
   {n:'Boy maqomi',p:2000,rank:'BOY'},{n:'VIP maqomi',p:10000,rank:'VIP'}];
  const sh=document.createElement('div');sh.id='shop';sh.innerHTML='<b>Shahar qurish</b>';document.body.appendChild(sh);
- mk.forEach((it,i)=>{const b=document.createElement('button');b.innerHTML='<span>'+it.n+'</span><em>$'+it.p.toLocaleString('en-US')+'</em>';b.onclick=()=>buy(i);sh.appendChild(b)});
+ let barBtn=null;mk.forEach((it,i)=>{const b=document.createElement('button');if(it.bar){b.style.display='none';barBtn=b}b.innerHTML='<span>'+it.n+'</span><em>$'+it.p.toLocaleString('en-US')+'</em>';b.onclick=()=>buy(i);sh.appendChild(b)});
  document.getElementById('shopBtn').onclick=e=>{e.stopPropagation();document.getElementById('fight').classList.remove('open');sh.classList.toggle('open')};
  function buy(i){const it=mk[i],me=C.me();if(!me)return;
+  if(it.bar&&!P.barKey)return toast('Bar sotib olish yopiq');
+  if(it.bar&&built.filter(v=>v===1).length>=3)return toast('Barlar soni chegaralangan');
   if(!P.inf&&P.money<it.p)return toast('Pul yetmaydi');
   if(it.rank){if(P.hacker)return toast('Sizda eng yuqori maqom bor');addMoney(-it.p);P.rank=it.rank;me.setRank(it.rank);toast('Yangi maqom: '+it.rank);tone(880,.2,.1,'triangle',1320);return}
   if(built.length>=20)return toast('Shahar to‘ldi');
   const p=me.root.position,r=me.root.rotation.y,x=Math.round(p.x+Math.sin(r)*10),z=Math.round(p.z+Math.cos(r)*10);
   if(Math.abs(x)>80||Math.abs(z)>80)return toast('Bu yerga qurib bo‘lmaydi');
-  addMoney(-it.p);addScore(it.p/50);built.push(i);it.f(x,z);netSend({k:'b',t:i,x,z});toast('Qurildi: '+it.n);tone(520,.2,.1,'triangle',900)}
+  addMoney(-it.p);addScore(it.p/50);built.push(i);it.f(x,z);bk.add(i+':'+x+':'+z);const bm={k:'b',t:i,x,z,h:it.bar?C.barTok:0};mine.push(bm);netSend(bm);toast('Qurildi: '+it.n);tone(520,.2,.1,'triangle',900)}
  function onNet(id,d){
-  if(d.k==='b'){const it=mk[d.t|0];if(it&&it.f&&isFinite(d.x)&&isFinite(d.z)&&Math.abs(d.x)<=80&&Math.abs(d.z)<=80&&built.length<20){built.push(d.t|0);it.f(d.x,d.z)}return}
+  if(d.k==='b'){const it=mk[d.t|0];const key=(d.t|0)+':'+d.x+':'+d.z;if(it&&it.f&&isFinite(d.x)&&isFinite(d.z)&&Math.abs(d.x)<=80&&Math.abs(d.z)<=80&&built.length<20&&!bk.has(key)){
+    if(it.bar&&(d.h!==C.barTok||built.filter(v=>v===1).length>=3))return;
+    bk.add(key);built.push(d.t|0);it.f(d.x,d.z)}return}
   if(d.to!==C.myInfo.id&&d.a!=='win')return;const rn=(C.remotes.get(id)||{}).name||'O‘yinchi';
   if(d.a==='ask'&&!race&&!asking){asking=true;C.ask(rn+' sizni poygaga chorlayapti.').then(ok=>{asking=false;if(ok&&!race){startRace();netSend({k:'r',a:'yes',to:id})}})}
   else if(d.a==='yes')startRace();
@@ -75,7 +79,7 @@ export function initWorld(C){
   for(const c of clouds){c.position.x+=dt*1.5;if(c.position.x>170)c.position.x=-170}
   const me=C.me();if(!me)return;const p=me.root.position;
   // bar: ichkariga kirganda tashqi qobiq (devor+tom) yashiriladi; uzoqdagi barlarda animatsiya o'chadi
-  for(const b of K.bars){b.near=Math.abs(p.x-b.x)<b.hw+45&&Math.abs(p.z-b.z)<b.hd+45;const ins=Math.abs(p.x-b.x)<b.hw-.3&&Math.abs(p.z-b.z)<b.hd-.3&&p.y<3;if(ins!==b.ins){b.ins=ins;for(const m of b.shell)m.visible=!ins}
+  for(const b of K.bars){b.near=Math.abs(p.x-b.x)<b.hw+45&&Math.abs(p.z-b.z)<b.hd+45;b.vis=b.ins||!C.view||C.view(b.x,2,b.z,11);const ins=Math.abs(p.x-b.x)<b.hw-.3&&Math.abs(p.z-b.z)<b.hd-.3&&p.y<3;if(ins!==b.ins){b.ins=ins;for(const m of b.shell)m.visible=!ins}
    // ichkarida kamera devor orqasiga o'tib qolsa, o'sha devor yashiriladi (personaj ko'rinib tursin)
    if(b.ins&&C.cam){const c=C.cam();b.wh=1;for(const w of b.walls){const o=w.ax==='x'?(c.x-b.x)*w.sg:(c.z-b.z)*w.sg;w.m.visible=o<(w.ax==='x'?b.hw:b.hd)-.5}}
    else if(b.wh){b.wh=0;for(const w of b.walls)w.m.visible=true}}
@@ -95,5 +99,6 @@ export function initWorld(C){
   if(race){race.t+=dt;if(p.z<FZ&&Math.abs(p.x-SX)<8){addScore(300);addMoney(500);toast('Siz g‘olibsiz! +300 bal');netSend({k:'r',a:'win'});race=null}else if(race.t>150)race=null}
   else if(rcd<=0&&Math.hypot(p.x-SX,p.z-SZ)<3)for(const[id,r]of C.remotes)if(Math.hypot(r.tx-SX,r.tz-SZ)<3&&C.myInfo.id<id){rcd=20;netSend({k:'r',a:'ask',to:id});toast('Poyga taklifi yuborildi…');break}
  }
- return{update,onNet,houses,bars:K.bars,dancers:K.dancers};
+ function sync(){const n=performance.now();if(!mine.length||n-syncT<4000)return;syncT=n;mine.forEach((m,i)=>setTimeout(()=>netSend(m),i*300))}
+ return{update,onNet,houses,bars:K.bars,dancers:K.dancers,sync,unlockBar:()=>{if(barBtn)barBtn.style.display=''}};
 }

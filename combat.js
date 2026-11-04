@@ -2,7 +2,7 @@ import * as THREE from 'three';
 // Jang (HP, godmode), botlar, 4/4 jamoaviy jang arenasi, juftlik va sevgi izhori. main.js dan initCombat(C) bilan ulanadi.
 export function initCombat(C){
  const {scene,P,toast,tone,netSend,remotes,myInfo,addScore,houses,body}=C,R=Math.random,bots=[],tm=new Map(),dead=new Set(),$=id=>document.getElementById(id);
- const AX=70,AZ=0,OUCH=['Nega urasiz?','Tinchlik bo‘lsin!','Men tinch odamman!','Ey, to‘xtang!'],NAMES=['Azizbek','Malika','Sardor','Nigora','Jasur','Dilnoza'],HOME=[[9,10],[-9,11],[14,3],[-14,2],[12,-8],[0,-13]];
+ const AX=70,AZ=0,OUCH=['Nega urasiz?','Tinchlik bo‘lsin!','Men tinch odamman!','Ey, to‘xtang!'],NAMES=['Azizbek','Malika','Sardor','Nigora'],HOME=[[9,10],[-9,11],[14,3],[-14,2]];
  let asking=false,hpW='',hp=100,team='',fight=null,partner='',lastAtk='',loveCd=0,dateCd=0,tT=0,sT=0,cT=0;
  const fl=new THREE.Mesh(new THREE.CircleGeometry(15,40),new THREE.MeshStandardMaterial({color:0x4a2a3a,roughness:.8}));fl.rotation.x=-Math.PI/2;fl.position.set(AX,.05,AZ);fl.receiveShadow=true;scene.add(fl);
  const rg=new THREE.Mesh(new THREE.RingGeometry(14.4,15,48),new THREE.MeshBasicMaterial({color:0xff4d6d}));rg.rotation.x=-Math.PI/2;rg.position.set(AX,.06,AZ);scene.add(rg);
@@ -62,7 +62,7 @@ export function initCombat(C){
    if(b.w>0)b.w-=dt;else{if(!b.tg){const a=R()*6.283,r=R()*3;b.tg={x:b.hx+Math.cos(a)*r,z:b.hz+Math.sin(a)*r};b.t=0}
     const dx=b.tg.x-c.root.position.x,dz=b.tg.z-c.root.position.z,d=Math.hypot(dx,dz);b.t+=dt;
     if(d<.4||b.t>6){b.tg=null;b.w=3+R()*6}else{has=true;tx=dx/d*1.4;tz=dz/d*1.4}}
-   body(c,tx,tz,has,dt,false);c.update(dt)}
+   body(c,tx,tz,has,dt,false);if(c.root.visible||c.bt>0)c.update(dt)}
   if(tT<=0){tT=3;if(team&&!fight)netSend({k:'t',tm:team});if(partner&&!remotes.has(partner))partner=''}
   if(fight&&cT<=0){cT=1;fight.forEach((t,id)=>{if(id!==myInfo.id&&!remotes.has(id))dead.add(id)});check()}
   if(sT<=0){sT=.5;$('fs').textContent=(team?'Jamoa: '+team:'Jamoasiz')+(fight?' · JANG!':'')+(partner?' · '+((remotes.get(partner)||{}).name||''):'')}

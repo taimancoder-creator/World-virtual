@@ -139,8 +139,8 @@ export function buildBank(K,x,z){
 const GIRLS=[[1,'Sevinch',-1.9,-1.9,.3],[3,'Zilola',1.9,-1.9,-.3],[5,'Madina',0,-.7,0]],
  LINES=['Raqsga tushamiz!','Musiqa juda zo‘r!','Bizga qo‘shiling!','Bugun kecha bizniki!','Ana shunday, davom eting!','Raqs tugmasini bosing!'];
 export function buildBar(K,x,z){
- const {scene,slab,flat,spots}=K,W=14,D=10,H=4,hw=W/2,hd=D/2,g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
- const bar={x,z,hw,hd,shell:[],walls:[],near:false,ins:false,girls:[],sayT:4,was:false};
+ const {scene,flat,spots}=K,own=[],slab=(...a)=>{const q=K.slab(...a);own.push(q);return q},W=14,D=10,H=4,hw=W/2,hd=D/2,g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
+ const bar={x,z,hw,hd,shell:[],walls:[],near:false,vis:true,ins:false,girls:[],sayT:4,was:false};
  const WALLM=M(0x6b2f4a),DARK=M(0x1a1620),SPK=M(0x0c0c10,{roughness:.5,metalness:.3}),WOOD2=M(0x5a3a22),
   neon=c=>M(0x050505,{emissive:c,emissiveIntensity:1.5,roughness:.4}),N0=neon(0xff62d5),N1=neon(0x35e1ff),N2=neon(0xffd24a),
   GL=M(0x220a2a,{emissive:0xff62d5,emissiveIntensity:.8,roughness:.3});
@@ -200,7 +200,7 @@ export function buildBar(K,x,z){
   for(const dz of[-.55,.55])spots.push({t:'sit',x:x-5.9,z:z+zc+dz,r:.95,y:.505-SD+.06,yaw:Math.PI/2,out:[x-4.7,z+zc+dz]})}
  // animatsiya: faqat bar yaqinida
  K.tick.push((dt,t)=>{
-  if(!bar.near){for(const c of bar.girls)c.off=true;return}
+  if(!bar.near||!bar.vis){for(const c of bar.girls)c.off=true;return}
   const b=K.beat(),ph=b-Math.floor(b),k=Math.max(0,1-ph*2.4),h0=(b*.06)%1;
   tm.forEach((m,i)=>{const h=(h0+i*.25)%1;m.emissive.setHSL(h,1,.28+.3*k);m.color.setHSL(h,.7,.12)});
   N0.emissive.setHSL((h0+.85)%1,1,.5);N1.emissive.setHSL((h0+.5)%1,1,.5);
@@ -216,6 +216,11 @@ export function buildBar(K,x,z){
  });
  // 3 ta raqqosa qiz: 3 xil personaj, bir xil koreografiya (musiqaga aniq mos)
  if(K.spawn)GIRLS.forEach(([gi,nm,gx,gz,yaw],i)=>setTimeout(()=>K.spawn(gi,nm,x+gx,z+gz).then(c=>{c.pose=3;c.root.rotation.y=yaw;c.root.position.y=.06;c.off=true;bar.girls.push(c);K.dancers.push(c)}).catch(()=>{}),i*300));
+ // SOYA YO'Q + statik obyektlar qotiriladi: matritsa har kadrda qayta hisoblanmaydi (faqat animatsiyali qismlar tirik qoladi)
+ const live=new Set([ball,...beams.map(q=>q.gp),...eq,...woofs]);
+ g.traverse(o=>{if(o.isMesh)o.castShadow=o.receiveShadow=false;if(!live.has(o)){o.matrixAutoUpdate=false;o.updateMatrix()}});
+ for(const o of own){o.castShadow=o.receiveShadow=false;o.matrixAutoUpdate=false;o.updateMatrix()}
+ g.updateMatrixWorld(true);own.forEach(o=>o.updateMatrixWorld(true));
  K.bars.push(bar);if(K.onBar)K.onBar(bar);
  return bar;
 }

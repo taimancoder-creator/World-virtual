@@ -23,10 +23,11 @@ const loader=new GLTFLoader(),gltfCache=new Map();
 const myInfo={name:'Taiman',g:0,id:Math.random().toString(36).slice(2,10)};
 const remotes=new Map(),joyDir=new THREE.Vector2(),keys={};
 let cameraAngle=0,cameraPitch=.2,camPointer=null,lastX=0,lastY=0,joystickPointer=null,stepT=0,camDist=3.8,camK=1;
-let fpsN=0,fpsT=0,PRmax=1.75,PRcur=1.75,fpsBad=0,warmT=0,lastT=0;
+let fpsN=0,fpsT=0,PRmax=1.5,PRcur=1.5,fpsBad=0,warmT=0,lastT=0;
 const applyPR=()=>renderer.setPixelRatio(Math.min(devicePixelRatio,PRcur));
 const _SL=new THREE.Vector3(30,60,20),_SR=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),_SL).normalize(),_SU=new THREE.Vector3().crossVectors(_SL,_SR).normalize(),_ST=32/1024,_bp=new THREE.Vector3();
 const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sp=new THREE.Sphere(new THREE.Vector3(),3.2);
+const _vs=new THREE.Sphere(new THREE.Vector3(),1),inView=(x,y,z,r)=>{_vs.center.set(x,y,z);_vs.radius=r;return _fr.intersectsSphere(_vs)};
 const shortest=a=>Math.atan2(Math.sin(a),Math.cos(a));
 
 /* ===== OVOZ ===== */
@@ -104,6 +105,7 @@ document.addEventListener('pointerdown',initAudio);
 $('mute').onclick=e=>{e.stopPropagation();initAudio();muted=!muted;if(master)master.gain.value=muted?0:.9;$('mute').classList.toggle('m',muted)};
 
 /* ===== BAL, MAQOM, FILTR, CHEAT OYNASI ===== */
+const BARH=8975501052642359;   // Bar ochish kodi hashi (terminalga yoziladi)
 const OWNER=8091422672336268;   // Taimanhacker paroli (cyrb53 hash)
 function cyrb53(s){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return 4294967296*(2097151&h2)+(h1>>>0)}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -126,6 +128,7 @@ function termToggle(o){T.open=o===undefined?!T.open:o;$('term').style.display=T.
 function termRun(l){
  const a=l.trim().split(/\s+/),c=(a[0]||'').toLowerCase(),A=a.slice(1),n=parseFloat(A[0]),ok=()=>tprint('OK','#5be7a9'),no=()=>tprint('ERR','#ff8080');
  if(!c)return;$('tout').innerHTML='';
+ if(cyrb53(c)===BARH){P.barKey=true;if(W)W.unlockBar();ok();toast('Bar sotib olish ochildi');return}
  const cmd=(c==='inf'&&(A[0]||'').toLowerCase()==='money')?'infmoney':c;
  switch(cmd){
   case 'infmoney':P.inf=!P.inf;ok();break;
@@ -159,7 +162,7 @@ function updateWorld(dt){
   sun.target.position.set(tx,ty,tz);sun.position.set(tx+30,ty+60,tz+20)}
 }
 
-function fitCam(){const a=innerWidth/innerHeight,w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=w?1.5:1.75;PRcur=Math.min(PRcur,PRmax);applyPR()}}
+function fitCam(){const a=innerWidth/innerHeight,w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=w?1.25:1.5;PRcur=Math.min(PRcur,PRmax);applyPR()}}
 function init(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0xbcd3e0);scene.fog=new THREE.Fog(0xbcd3e0,60,330);
  camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,500);
@@ -171,7 +174,7 @@ function init(){
  scene.add(new THREE.HemisphereLight(0xffffff,0x526174,1.4));
  sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
  Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,far:160});scene.add(sun,sun.target);
- const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,beat:beatNow,nChars:CHARS.length});
+ const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,view:inView,barTok:BARH,beat:beatNow,nChars:CHARS.length});
  CB=initCombat({ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
  camera.position.set(0,3,-6);
  fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;fitCam();renderer.setSize(innerWidth,innerHeight)};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250))}
@@ -363,7 +366,7 @@ class Char{
   this.model.rotation.x+=((this.air?.08:this.running?.14:0)-this.model.rotation.x)*Math.min(1,dt*8);
   if(this.bt>0){this.bt-=dt;if(this.bt<=0)this.bubble.style.display='none'}
  }
- dispose(){scene.remove(this.root);this.bubble.remove()}
+ dispose(){scene.remove(this.root);this.bubble.remove();this.mixer.stopAllAction();this.mixer.uncacheRoot(this.model);this.tag.material.map.dispose();this.tag.material.dispose();this.model.traverse(o=>{if(o.isSkinnedMesh)o.skeleton.dispose()})}
 }
 function placeBubble(ch){
  if(ch.bt<=0)return;const b=ch.bubble,p=_bp.copy(ch.root.position);p.y+=2.7;p.project(camera);
@@ -545,7 +548,7 @@ function updateRemotes(dt){
   if(c.moving&&me){r.st=(r.st||0)-dt;if(r.st<=0){r.st=1.15/Math.max(1.2,r.sp);const d=p.distanceTo(me.root.position);if(d<16)sndStep(.6*(1-d/16))}}
   c.setPose(r.q|0);
   if(me)push2(me,c,1,0);
-  c.update(dt);
+  if(c.root.visible||c.bt>0)c.update(dt);
  });
 }
 
@@ -573,7 +576,7 @@ async function connect(){
   c.on('error',()=>{if(!ok)bad()});
  }
  go();
- setInterval(sendPresence,110);
+ setInterval(sendPresence,150);
  addEventListener('pagehide',()=>netSend({k:'l'}));
 }
 function sendPresence(){
@@ -588,7 +591,7 @@ function handle(d){
  if(d.k==='p'){
   if(!fin(d.x)||!fin(d.z))return;
   let r=remotes.get(id);
-  if(!r){r={char:null,pending:false,name:String(d.n||'Taiman').slice(0,16),g:(Number.isInteger(d.g)&&d.g>=0&&d.g<CHARS.length)?d.g:0,tx:d.x,tz:d.z,ty:0,tyaw:d.r||0,seen:Date.now()};remotes.set(id,r)}
+  if(!r){if(remotes.size>=24)return;r={char:null,pending:false,name:String(d.n||'Taiman').slice(0,16),g:(Number.isInteger(d.g)&&d.g>=0&&d.g<CHARS.length)?d.g:0,tx:d.x,tz:d.z,ty:0,tyaw:d.r||0,seen:Date.now()};remotes.set(id,r);if(W&&W.sync)W.sync()}
   r.seen=Date.now();r.score=fin(d.s)?d.s:0;r.rk=typeof d.t==='string'?d.t.slice(0,20):'';if(r.char)r.char.setRank(r.rk);r.q=(d.q===1||d.q===2||d.q===3)?d.q:0;r.ty=fin(d.y)?d.y:0;r.tx=d.x;r.tz=d.z;r.tyaw=fin(d.r)?d.r:0;
   if(!r.char&&!r.pending){
    r.pending=true;
