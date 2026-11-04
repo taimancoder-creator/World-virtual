@@ -29,14 +29,14 @@ svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-l
 .card span{position:absolute;left:0;right:0;bottom:0;padding:24px 8px 9px;background:linear-gradient(transparent,#000d);font-weight:700;font-size:15px}
 .card.s{border-color:var(--cy);box-shadow:0 0 0 2px #35e1ff40,0 10px 26px #35e1ff40}
 .card.na{opacity:.35}.card.na span::after{content:' · model yo‘q';font-weight:400;font-size:10px;color:#ffb4a0}
-@media(min-width:620px){#pick{max-width:660px}#grid{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:620px){#pick{max-width:660px}#grid{grid-template-columns:repeat(3,1fr)}}
 .row{display:flex;gap:10px;width:100%;justify-content:center;align-items:center;flex-wrap:wrap}
 #nick{flex:1 1 180px;max-width:260px;height:48px;border-radius:14px;border:1px solid #35e1ff66;background:#0e1828f2;color:#fff;text-align:center;font-size:16px;outline:none;-webkit-user-select:text;user-select:text}
 #nick:focus{border-color:var(--cy);box-shadow:0 0 0 3px #35e1ff26}
 #go{height:48px;padding:0 34px;border-radius:14px;background:linear-gradient(165deg,#5aeaff,#17a3e0);color:#02202e;font-weight:800;font-size:15px;letter-spacing:.3px;box-shadow:0 8px 24px #17a3e055;transition:transform .1s}
 #go:active{transform:scale(.97)}#go:disabled{opacity:.5}
 #msg{color:#ffb4a0;font-size:12px;min-height:16px;max-width:320px}
-@media(max-height:480px){#intro{padding-top:calc(8px + var(--st));padding-bottom:calc(8px + var(--sb))}#pick{gap:7px;max-width:min(720px,92vw)}#grid{grid-template-columns:repeat(4,1fr);gap:8px}.card{aspect-ratio:1/.78;border-radius:14px}.card span{padding:14px 6px 6px;font-size:13px}#intro h1{font-size:22px}#nick,#go{height:42px}}
+@media(max-height:480px){#intro{padding-top:calc(8px + var(--st));padding-bottom:calc(8px + var(--sb))}#pick{gap:7px;max-width:min(720px,92vw)}#grid{grid-template-columns:repeat(6,1fr);gap:8px}.card{aspect-ratio:1/.78;border-radius:14px}.card span{padding:14px 6px 6px;font-size:13px}#intro h1{font-size:22px}#nick,#go{height:42px}}
 
 /* ---------- yuqori panel ---------- */
 #topbar{position:fixed;z-index:10;top:var(--row1);left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);height:var(--ib);display:flex;justify-content:space-between;align-items:center;pointer-events:none}
@@ -131,4 +131,26 @@ body.modal #joystick,body.modal #actions{opacity:.3;pointer-events:none}
  #shop,#fight{top:calc(var(--row2) + 6px);width:min(240px,40vw)}
  #hp{bottom:calc(var(--sb) + 10px)}
 }
+
+/* ---------- bot ustidagi "-bal" yozuvi (gap pufagidan alohida joyda) ---------- */
+#pops{position:fixed;inset:0;z-index:26;pointer-events:none;overflow:hidden}
+.pop{position:absolute;left:0;top:0;will-change:transform,opacity;white-space:nowrap;font-weight:800;font-size:15px;color:#ff8a8a;text-shadow:0 1px 3px #000,0 0 8px #000}
+
+/* ---------- kontekst tugma: o'tirish / yotish / raqs ---------- */
+.ctx{position:fixed;z-index:21;right:calc(var(--sr) + 16px);bottom:calc(var(--sb) + 22px + var(--bt)*2 + 22px);display:none;align-items:center;justify-content:center;min-width:104px;height:42px;padding:0 18px;border-radius:21px;background:linear-gradient(165deg,#ff7fd9,#c03a9a);border:1.5px solid #ffc4ee;box-shadow:var(--sh);color:#fff;font-weight:800;font-size:13px;letter-spacing:.8px;animation:ctxp 1.4s infinite}
+.ctx.show{display:flex}
+body.chatting .ctx,body.modal .ctx{display:none}
+@keyframes ctxp{0%{box-shadow:0 0 0 0 #ff62d599,var(--sh)}100%{box-shadow:0 0 0 14px #ff62d500,var(--sh)}}
+
+/* ---------- gorizontal holat eslatmasi ---------- */
+#rot{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,16,.82)}
+#rot.open{display:flex}
+.rbox{width:min(330px,100%);padding:24px 20px 20px;border-radius:20px;background:var(--pn);border:1px solid var(--ln);box-shadow:0 20px 50px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.12);display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.rbox b{font-size:18px;color:var(--cy)}
+.rbox p{font-size:13.5px;line-height:1.5;color:var(--tx)}
+.rbox button{margin-top:4px;width:100%;height:46px;border-radius:12px;font-weight:800;font-size:14px;background:linear-gradient(165deg,#5aeaff,#17a3e0);color:#02202e}
+.ph{width:36px;height:64px;margin:14px 0 18px;border:3px solid var(--cy);border-radius:9px;position:relative;animation:rotph 2.4s ease-in-out infinite}
+.ph::after{content:"";position:absolute;left:50%;bottom:4px;width:10px;height:3px;margin-left:-5px;border-radius:2px;background:var(--cy)}
+@keyframes rotph{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+@media(max-height:480px){.ctx{bottom:calc(var(--sb) + 10px + var(--bt)*2 + 16px)}.rbox{flex-direction:row;flex-wrap:wrap;justify-content:center}.ph{margin:4px 10px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

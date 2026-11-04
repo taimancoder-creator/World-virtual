@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import {treeParts} from './buildings.js';
 // Haqiqiyga yaqin tog'lar: ridged-noise balandlik, balandlik/qiyalikka qarab rang (o't, o'rmon, tosh, qor), o'rmon va osmon.
 const hash=(x,z)=>{const h=Math.sin(x*127.1+z*311.7)*43758.5453;return h-Math.floor(h)};
 const sm=t=>t*t*(3-2*t),cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -38,19 +37,7 @@ export function buildTerrain(scene){
  }
  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
  const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));
- // o'rmon: pastki yonbag'irlarda instanced daraxtlar
- const NT=420,tp=treeParts().p[0],fol=new THREE.InstancedMesh(tp.leaf,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95}),NT),
-  trk=new THREE.InstancedMesh(tp.trunk,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}),NT),
-  d=new THREE.Object3D(),cc=new THREE.Color();let n=0,tries=0;
- while(n<NT&&tries<5000){tries++;
-  const a=Math.random()*6.2832,u=Math.random()*.42,r=edge(a)+u*SPAN+2,x=Math.cos(a)*r,z=Math.sin(a)*r,y=hgt(x,z,u);
-  if(y>24||fbm(x*.06+9,z*.06)<.42)continue;
-  if(Math.hypot(hgt(x+1.5,z,u)-hgt(x-1.5,z,u),hgt(x,z+1.5,u)-hgt(x,z-1.5,u))>2.1)continue;
-  const s=1.1+Math.random()*1.3;d.position.set(x,y-.2,z);d.rotation.set(0,Math.random()*6,0);d.scale.set(s,s*(1+Math.random()*.35),s);d.updateMatrix();
-  fol.setMatrixAt(n,d.matrix);trk.setMatrixAt(n,d.matrix);cc.setHSL(.28+Math.random()*.08,.25,.62+Math.random()*.25);fol.setColorAt(n,cc);n++;
- }
- fol.count=trk.count=n;fol.instanceMatrix.needsUpdate=trk.instanceMatrix.needsUpdate=true;if(fol.instanceColor)fol.instanceColor.needsUpdate=true;
- scene.add(terrain,fol,trk);
+ scene.add(terrain);
 }
 
 export function buildSky(scene){

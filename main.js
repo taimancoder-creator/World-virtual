@@ -12,7 +12,9 @@ const CHARS=[
  {id:'adam',name:'Adam',model:'adam.glb',img:'adam.png'},
  {id:'eva',name:'Eva',model:'eva.glb',img:'eva.png'},
  {id:'jack',name:'Jack',model:'jack.glb',img:'jack.png'},
- {id:'lily',name:'Lily',model:'lily.glb',img:'lily.png'}];
+ {id:'lily',name:'Lily',model:'lily.glb',img:'lily.png'},
+ {id:'max',name:'Max',model:'max.glb',img:'max.png'},
+ {id:'mia',name:'Mia',model:'mia.glb',img:'mia.png'}];
 const WALK=2.8,RUN=5.4,RUN_AT=.88,G=24,JUMP=9;
 const clamp=THREE.MathUtils.clamp;
 
@@ -28,26 +30,26 @@ const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sp=new THREE.Sphere(new T
 const shortest=a=>Math.atan2(Math.sin(a),Math.cos(a));
 
 /* ===== OVOZ ===== */
-let AC=null,master=null,noiseBuf=null,muted=false;
+let AC=null,master=null,noiseBuf=null,muted=false,OUT=null,TAT=0,musicG=null;
 function initAudio(){
  if(AC){if(AC.state==='suspended')AC.resume();return}
  const A=window.AudioContext||window.webkitAudioContext;if(!A)return;
- AC=new A();master=AC.createGain();master.gain.value=.9;master.connect(AC.destination);
+ AC=new A();master=AC.createGain();master.gain.value=.9;master.connect(AC.destination);musicG=AC.createGain();musicG.gain.value=0;musicG.connect(master);
  noiseBuf=AC.createBuffer(1,AC.sampleRate*.4,AC.sampleRate);
  const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
 }
 function noise(type,freq,dur,vol,to){
- if(!AC||vol<.01)return;const t=AC.currentTime,s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();
+ if(!AC||vol<.01)return;const t=AC.currentTime+TAT,s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();
  s.buffer=noiseBuf;s.playbackRate.value=.8+Math.random()*.4;f.type=type;f.frequency.setValueAtTime(freq,t);
  if(to)f.frequency.exponentialRampToValueAtTime(to,t+dur);
  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
- s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+dur+.02);
+ s.connect(f);f.connect(g);g.connect(OUT||master);s.start(t);s.stop(t+dur+.02);
 }
 function tone(f0,dur,vol,type,f1){
- if(!AC)return;const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+ if(!AC)return;const t=AC.currentTime+TAT,o=AC.createOscillator(),g=AC.createGain();
  o.type=type||'sine';o.frequency.setValueAtTime(f0,t);if(f1)o.frequency.exponentialRampToValueAtTime(f1,t+dur);
  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
- o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);
+ o.connect(g);g.connect(OUT||master);o.start(t);o.stop(t+dur+.02);
 }
 const sndStep=(v=1)=>{noise('lowpass',420+Math.random()*300,.14,.45*v);tone(70+Math.random()*20,.1,.12*v,'sine',45)};
 const sndSend=()=>tone(660,.12,.12,'triangle',880);
@@ -56,6 +58,48 @@ const sndPunch=()=>{noise('bandpass',1800,.18,.5,300);setTimeout(()=>{noise('low
 const sndPtt=()=>tone(1100,.06,.1,'square');
 const sndJump=n=>tone(n>1?520:380,.18,.14,'sine',n>1?950:650);
 const sndLand=()=>{noise('lowpass',300,.12,.5);tone(90,.1,.2,'sine',50)};
+
+/* ===== MUSIQA: bar yaqinida chalinadi (124 BPM, kod bilan hosil qilinadi). Raqqosalar va o'yinchi shu soat bo'yicha raqsga tushadi ===== */
+// O'Z MUSIQANGIZ: index.html bilan bir papkadagi music.mp3. Raqs shu musiqaning tempiga moslanadi.
+// MP3_BPM = qo'shig'ingiz BPM i (raqs zarbga tushishi uchun), MP3_OFFSET = birinchi zarb necha soniyada boshlanadi.
+const MP3_BPM=124,MP3_OFFSET=0;
+let mp3=null,mp3Fail=false;
+try{mp3=new Audio('music.mp3');mp3.loop=true;mp3.preload='auto';mp3.volume=0;mp3.addEventListener('error',()=>{mp3Fail=true})}catch(e){mp3Fail=true}
+const mp3Ok=()=>mp3&&!mp3Fail;
+const SPB=60/MP3_BPM,beatNow=()=>mp3Ok()&&mp3.readyState>1?(mp3.currentTime-MP3_OFFSET)/SPB:Date.now()/(SPB*1000),
+ MCH=[[55,220,261.63,329.63],[43.65,174.61,220,261.63],[65.41,261.63,329.63,392],[49,196,246.94,293.66]],MU={step:-1};
+function playStep(n,at){
+ const s=n%16,c=MCH[Math.floor(n/16)%4];OUT=musicG;TAT=Math.max(0,at-AC.currentTime);
+ try{
+  if(s%4===0)tone(165,.26,.85,'sine',42);                                  // kik
+  if(s===4||s===12)noise('bandpass',1700,.16,.4,900);                      // chapak
+  if(s%4===2)noise('highpass',7500,.08,.22);else if(s%2===1)noise('highpass',9000,.03,.09);   // tarelka
+  if(s%4===2)tone(c[0],.2,.5,'triangle');                                  // bas
+  if(s===0||s===6||s===10)for(let i=1;i<4;i++)tone(c[i],.2,.045,'square'); // akkord
+  if(s%2===0)tone(c[1+((s>>1)%3)]*2,.11,.035,'triangle');                  // arpedjio
+  if(n%64===0)noise('highpass',5000,.9,.2,9000);
+ }finally{OUT=null;TAT=0}
+}
+function musicVol(){
+ if(!W||!me||!W.bars.length)return 0;const p=me.root.position;let v=0;
+ for(const b of W.bars){if(b.ins)return 1;const d=Math.hypot(Math.max(0,Math.abs(p.x-b.x)-b.hw),Math.max(0,Math.abs(p.z-b.z)-b.hd)),t=Math.max(0,1-d/34);v=Math.max(v,t*t*.55)}
+ return v;
+}
+function musicTick(){
+ if(!started)return;
+ if(mp3Ok()){
+  const v=muted?0:musicVol(),tg=Math.min(1,v*.9);mp3.volume=Math.min(1,Math.max(0,mp3.volume+(tg-mp3.volume)*.5));
+  if(v<.02){if(!mp3.paused)mp3.pause()}else if(mp3.paused)mp3.play().catch(()=>{});
+  return;
+ }
+ if(!AC||!musicG)return;
+ const v=muted?0:musicVol();musicG.gain.setTargetAtTime(v*.9,AC.currentTime,.15);
+ if(v<.02){MU.step=-1;return}
+ const now=Date.now(),ms=SPB*1000/4;
+ if(MU.step<0||MU.step*ms<now-250)MU.step=Math.ceil(now/ms);
+ while(MU.step*ms<now+350){playStep(MU.step,AC.currentTime+Math.max(0,(MU.step*ms-now)/1000));MU.step++}
+}
+setInterval(musicTick,90);
 document.addEventListener('pointerdown',initAudio);
 $('mute').onclick=e=>{e.stopPropagation();initAudio();muted=!muted;if(master)master.gain.value=muted?0:.9;$('mute').classList.toggle('m',muted)};
 
@@ -97,6 +141,7 @@ setInterval(()=>{if(started){updHud();saveP()}},500);
 
 /* ===== SAHNA (bo'sh: faqat yer + yorug'lik. Keyin shu yerga to'ldiramiz) ===== */
 const solids=[];   // to'siqlar/platformalar: {x,z,hx,hz,top,y0}
+const spots=[];    // o'tirish/yotish/raqs joylari: {t:'sit'|'lie'|'dance',x,z,r,y,yaw,out}
 const mat=(c,e,i)=>new THREE.MeshStandardMaterial({color:c,roughness:.7,emissive:e||0,emissiveIntensity:i||0});
 function put(m,x,y,z,sh){m.position.set(x,y,z);if(sh!==false)m.castShadow=m.receiveShadow=true;scene.add(m);return m}
 function slab(x,z,w,d,h,m,y0=0){const q=put(new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m),x,y0+h/2,z);solids.push({x,z,hx:w/2,hz:d/2,top:y0+h,y0});return q}
@@ -126,13 +171,14 @@ function init(){
  scene.add(new THREE.HemisphereLight(0xffffff,0x526174,1.4));
  sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
  Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,far:160});scene.add(sun,sun.target);
- const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney});
- CB=initCombat({ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:(g,n,x,z)=>loadGltf(g).then(gl=>{const c=new Char(gl,n,g,false);c.root.position.set(x,0,z);return c})});
+ const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,beat:beatNow,nChars:CHARS.length});
+ CB=initCombat({ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
  camera.position.set(0,3,-6);
  fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;fitCam();renderer.setSize(innerWidth,innerHeight)};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250))}
 }
 
 /* ===== PERSONAJ (GLB) ===== */
+const spawnChar=(g,n,x,z)=>loadGltf(g).then(gl=>{const c=new Char(gl,n,g,false);c.root.position.set(x,0,z);return c});
 function loadGltf(g,onp){
  if(!gltfCache.has(g))gltfCache.set(g,new Promise((ok,no)=>loader.load(CHARS[g].model,ok,e=>{if(onp&&e.lengthComputable&&e.total)onp(e.loaded/e.total)},no)));
  return gltfCache.get(g);
@@ -145,7 +191,7 @@ function prepare(obj){
  box=new THREE.Box3().setFromObject(obj);const c=box.getCenter(new THREE.Vector3());
  obj.position.x-=c.x;obj.position.z-=c.z;obj.position.y-=box.min.y;
  obj.traverse(ch=>{if(ch.isMesh){ch.castShadow=true;ch.receiveShadow=true;ch.frustumCulled=false}});
- root.add(obj);return root;
+ const pivot=new THREE.Group();pivot.add(obj);root.add(pivot);root.userData.pivot=pivot;return root;
 }
 function tagSprite(name,color,rank){
  const cn=document.createElement('canvas');cn.width=256;cn.height=rank?96:64;const x=cn.getContext('2d'),y=rank?74:42;
@@ -155,13 +201,13 @@ function tagSprite(name,color,rank){
  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cn),transparent:true,depthWrite:false,fog:false}));
  sp.scale.set(1.6,rank?.6:.4,1);sp.position.y=rank?2.25:2.15;return sp;
 }
-const _p0=new THREE.Vector3(),_p1=new THREE.Vector3(),_p2=new THREE.Vector3(),_t1=new THREE.Vector3(),_t2=new THREE.Vector3(),_a=new THREE.Vector3(),_Z=new THREE.Vector3(0,0,1),_q1=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_q4=new THREE.Quaternion(),_q5=new THREE.Quaternion(),_q6=new THREE.Quaternion(),_q7=new THREE.Quaternion();
+const _p0=new THREE.Vector3(),_p1=new THREE.Vector3(),_p2=new THREE.Vector3(),_t1=new THREE.Vector3(),_t2=new THREE.Vector3(),_a=new THREE.Vector3(),_Z=new THREE.Vector3(0,0,1),_q1=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_q4=new THREE.Quaternion(),_q5=new THREE.Quaternion(),_q6=new THREE.Quaternion(),_q7=new THREE.Quaternion(),_qP=new THREE.Quaternion();
 class Char{
  constructor(gltf,name,g,isMe){
   const clone=SkeletonUtils.clone(gltf.scene);
   this.root=prepare(clone);this.model=clone;this.base=clone.position.clone();this.acts={};this.cur=null;this.lock=0;this.lockT=1;this.name=name;this.g=g;
   this.moving=false;this.running=false;this.air=false;this.grounded=true;this.speed=0;this.vx=0;this.vz=0;this.vy=0;this.jc=0;this.ph=0;this.mw=0;this.aw=0;this.limbs=[];
-  this.wv=0;this.wvw=0;this.wvT=0;this.pw=0;this.pt=0;this.pk='h';this.ps=1;this.mod=new Map();this.combo=0;this.lockN='';this.fixY=0;this.feet=[];this.h0=0;
+  this.wv=0;this.wvw=0;this.wvT=0;this.pw=0;this.pt=0;this.pk='h';this.ps=1;this.mod=new Map();this.combo=0;this.lockN='';this.fixY=0;this.feet=[];this.h0=0;this.pivot=this.root.userData.pivot;this.pose=0;this.sw=0;this.dv=0;this.dB=0;this.dtc=.016;this.dip=0;this.off=false;
   this.mixer=new THREE.AnimationMixer(clone);
   gltf.animations.forEach(clip=>{
    const n=clip.name.toLowerCase(),a=this.mixer.clipAction(clip);
@@ -206,17 +252,17 @@ class Char{
  feetMin(){this.root.updateMatrixWorld(true);let m=1e9;for(const f of this.feet){f.getWorldPosition(_p0);if(_p0.y<m)m=_p0.y}return m-this.root.position.y}
  // qo'l/oyoq holatini joriy animatsiyadan maqsad yo'nalishga buradi (salom, zarba, tepish)
  armPose(){
-  const ww=this.wvw,pw=this.pw;
+  const ww=this.wvw,pw=this.pw,sw=this.sw,dv=this.dv;
   // oldingi kadrda biz o'zgartirgan, lekin animatsiya qayta yozmagan suyaklarni asl holiga qaytaramiz (qotib qolmasligi uchun)
   if(this.mod.size){for(const [b,m] of this.mod)if(b.quaternion.equals(m.last))b.quaternion.copy(m.base);this.root.updateMatrixWorld(true);this.mod.clear()}
-  if(ww<.01&&pw<.01)return;
-  this.root.updateMatrixWorld(true);this.root.getWorldQuaternion(_q1);
-  const aim=(b,c,t,w)=>{b.getWorldPosition(_p0);c.getWorldPosition(_p1);_p1.sub(_p0);if(_p1.lengthSq()<1e-8)return;_p1.normalize();
-   _p2.copy(t).normalize().applyQuaternion(_q1);_q5.setFromUnitVectors(_p1,_p2);_q6.identity().slerp(_q5,w);
+  if(ww<.01&&pw<.01&&sw<.01&&dv<.01)return;
+  this.root.updateMatrixWorld(true);this.root.getWorldQuaternion(_q1);this.pivot.getWorldQuaternion(_qP);
+  const aim=(b,c,t,w,fq)=>{b.getWorldPosition(_p0);c.getWorldPosition(_p1);_p1.sub(_p0);if(_p1.lengthSq()<1e-8)return;_p1.normalize();
+   _p2.copy(t).normalize().applyQuaternion(fq);_q5.setFromUnitVectors(_p1,_p2);_q6.identity().slerp(_q5,w);
    b.getWorldQuaternion(_q7);_q7.premultiply(_q6);b.parent.getWorldQuaternion(_q3);b.quaternion.copy(_q3.invert().multiply(_q7))};
-  const sm=x=>x*x*(3-2*x),t=this.pt;
+  const sm=x=>x*x*(3-2*x),t=this.pt,B=this.dB,kk=Math.min(1,this.dtc*16);
   for(const L of this.limbs){
-   if(!L.ch)continue;const s=L.side;let w=0;
+   if(!L.ch)continue;const s=L.side;let w=0,fq=_q1;
    if(pw>=.01&&this.pk==='h'&&L.k==='ua'&&s===this.ps&&L.ch2){
     // musht: ixcham holat -> to'g'ri otiladi -> qaytadi
     const e=sm(t<.4?t/.4:1-(t-.4)/.6);w=pw;
@@ -229,13 +275,47 @@ class Char{
     _t2.set(0,-1,.2).lerp(_a.set(0,.45,1),e);
    }else if(pw<.01&&ww>=.01&&L.k==='ua'&&s>0){
     w=ww;_t1.set(s*.8,.6,.1);_t2.set(s*(.15+.5*Math.sin(this.wvT)),1,.1);
+   }else if(pw<.01&&L.ch2&&(L.k==='ua'||L.k==='th')&&(dv>=.01||sw>=.01)){
+    // raqs / o'tirish / yotish: maqsad yo'nalishlar silliq o'zgaradi
+    if(dv>=.01){w=dv;this.danceT(L,B,s);fq=L.k==='ua'?_qP:_q1}else{w=sw;this.seatT(L,s);fq=_qP}
+    if(L.v1){L.v1.lerp(_t1,kk);L.v2.lerp(_t2,kk)}else{L.v1=_t1.clone();L.v2=_t2.clone()}
+    _t1.copy(L.v1);_t2.copy(L.v2);
    }else continue;
    for(const b of [L.b,L.ch,L.ch2])if(b&&!this.mod.has(b))this.mod.set(b,{base:b.quaternion.clone(),last:null});
-   aim(L.b,L.ch,_t1,w);
-   if(L.ch2){L.b.updateMatrixWorld(true);aim(L.ch,L.ch2,_t2,w)}
+   aim(L.b,L.ch,_t1,w,fq);
+   if(L.ch2){L.b.updateMatrixWorld(true);aim(L.ch,L.ch2,_t2,w,fq)}
   }
   this.mod.forEach((m,b)=>{m.last=b.quaternion.clone()});
  }
+ // RAQS: 6 ta harakat, har biri 8 zarb davom etadi; hamma raqqosalar bir xil (unison). B = soat zarbi (butun qism = zarb raqami)
+ danceT(L,B,s){
+  const bi=Math.floor(B),ph=B-bi,mv=Math.floor(B/8)%6,act=(s>0)===(bi%2===0),e=.5-.5*Math.cos(ph*6.2832),d=1-e,l=Math.sin(ph*Math.PI),sy=Math.sin(B*Math.PI),v=_t1,u=_t2;
+  if(L.k==='ua'){
+   if(mv===0){if(act){v.set(s*.6,.75,.25);u.set(s*.35,.9,.15)}else{v.set(s*.7,-.6,-.1);u.set(-s*.7,-.55,.35)}}   // disko ishora + belda qo'l
+   else if(mv===1){v.set(s*.35,.95,.1);u.set(s*(.2+.45*d),.9,.15+.25*d)}                                       // qo'llar tepada pompa
+   else if(mv===2){v.set(s*.45+sy*.5,.85,.05);u.set(s*.2+sy*.7,.9,.1)}                                          // tepada katta to'lqin
+   else if(mv===3){v.set(s*.7,-.6,-.1);u.set(-s*.7,-.55,.35)}                                                   // belda qo'llar
+   else if(mv===4){v.set(s*.3,.5,.8);u.set(s*(-.5+.9*e),.7,.6)}                                                 // chapak
+   else{const a=Math.sin(B*Math.PI+(s>0?0:Math.PI));v.set(s*.18,-.7,a*.7);u.set(s*.12,-.5,a*.8+.35)}            // qo'l siltash
+  }else{
+   const a=.38*(.4+.6*d);
+   v.set(0,-Math.cos(a),Math.sin(a));u.set(0,-Math.cos(a*1.05),-Math.sin(a*1.05));                              // tizza bukilishi (zarbga mos)
+   if(mv===0&&!act){v.set(s*.45,-.9,.05);u.set(s*.4,-.9,-.1)}
+   else if(mv===1&&act){v.set(s*.05,-.95+.35*l,.1+.7*l);u.set(0,-.95,-.1-.4*l)}
+   else if(mv===2){const o=Math.max(0,s*sy);v.set(s*(.2+.35*o),-.93,0);u.set(s*(.1+.25*o),-.95,-.05)}
+   else if(mv===3&&act){v.set(s*.1,-.85,.45);u.set(0,-.95,-.3)}
+   else if(mv===4&&act){v.set(s*(.15+.7*l),-.95+.5*l,.05);u.set(s*(.1+.6*l),-.95+.4*l,-.05)}
+   else if(mv===5&&act){v.set(s*.08,-.95+.1*l,.05+.55*l);u.set(0,-.99,.1*l)}
+  }
+ }
+ // O'TIRISH (pose 1) va YOTISH (pose 2) holati
+ seatT(L,s){
+  const v=_t1,u=_t2;
+  if(this.pose===2){if(L.k==='th'){v.set(s*.07,-1,0);u.set(s*.05,-1,.04)}else{v.set(s*.25,-.8,.3);u.set(-s*.85,-.2,.55)}}
+  else if(L.k==='th'){v.set(s*.1,-.03,1);u.set(s*.03,-1,-.12)}
+  else{v.set(s*.2,-.85,.3);u.set(-s*.08,-.25,.95)}
+ }
+ setPose(q){this.pose=q|0}
  say(t){this.bubble.lastChild.textContent=t;this.bubble.style.display='block';this.bt=8;this.bh=0}
  applyLimbs(){
   const run=clamp(this.speed/RUN,0,1),amp=this.mw*(.35+.5*run),air=this.aw,s=Math.sin(this.ph),c=Math.cos(this.ph);
@@ -253,9 +333,10 @@ class Char{
   }
  }
  update(dt){
-  if(this.lock>0)this.lock-=dt;
+  this.dtc=dt;if(this.lock>0)this.lock-=dt;
   {
    let n=this.moving?(this.running?'run':'walk'):'idle';
+   if(this.pose)n='idle';
    if(n==='run'&&!this.acts.run)n='walk';
    this.play(n);
    if(this.acts.walk)this.acts.walk.timeScale=(n==='walk'&&this.running)?1.8:clamp(this.speed/WALK,.5,1.3);
@@ -267,33 +348,91 @@ class Char{
   this.ph+=dt*(this.speed*2.4+1.5);
   this.mw+=((this.moving&&!this.air?1:0)-this.mw)*Math.min(1,dt*10);this.aw+=((this.air?1:0)-this.aw)*Math.min(1,dt*12);
   if(!this.acts.walk&&this.limbs.length)this.applyLimbs();
+  {const k=Math.min(1,dt*7);
+   this.sw+=(((this.pose===1||this.pose===2)?1:0)-this.sw)*k;this.dv+=((this.pose===3?1:0)-this.dv)*Math.min(1,dt*5);
+   this.pivot.rotation.x+=((this.pose===2?-Math.PI/2:0)-this.pivot.rotation.x)*k;
+   let dip=0,sway=0,twist=0;
+   if(this.dv>.01){const B=beatNow(),ph=B-Math.floor(B),d=.5+.5*Math.cos(ph*6.2832),mv=Math.floor(B/8)%6;this.dB=B;
+    dip=this.dv*.07*(.4+.6*d);sway=this.dv*Math.sin(B*Math.PI)*.07;twist=this.dv*Math.sin(B*Math.PI+.5)*(mv===5?.45:.28)}
+   this.pivot.rotation.y=twist;this.pivot.rotation.z=sway;this.dip=dip}
   this.pt=clamp(1-this.lock/this.lockT,0,1);this.pw=(this.lock>0&&this.lockN==='punch')?clamp(Math.sin(Math.PI*this.pt)*3,0,1):0;
   this.armPose();
   if(this.feet.length){this.model.position.y=this.base.y;const need=clamp(this.h0-this.feetMin()-.02,0,.4);this.fixY+=(need-this.fixY)*Math.min(1,dt*18)}
   const run=clamp(this.speed/RUN,0,1);
-  this.model.position.y=this.base.y+this.fixY+(this.acts.walk?0:Math.abs(Math.sin(this.ph))*.06*this.mw*(1+run));
+  this.model.position.y=this.base.y+this.fixY-this.dip+(this.acts.walk?0:Math.abs(Math.sin(this.ph))*.06*this.mw*(1+run));
   this.model.rotation.x+=((this.air?.08:this.running?.14:0)-this.model.rotation.x)*Math.min(1,dt*8);
   if(this.bt>0){this.bt-=dt;if(this.bt<=0)this.bubble.style.display='none'}
  }
  dispose(){scene.remove(this.root);this.bubble.remove()}
 }
 function placeBubble(ch){
- if(ch.bt<=0)return;const b=ch.bubble,p=_bp.copy(ch.root.position);p.y+=2.5;p.project(camera);
+ if(ch.bt<=0)return;const b=ch.bubble,p=_bp.copy(ch.root.position);p.y+=2.7;p.project(camera);
  if(p.z>1){b.style.opacity=0;return}b.style.opacity=1;
  if(!ch.bh)ch.bh=b.offsetHeight;
  const x=clamp((p.x*.5+.5)*innerWidth,110,innerWidth-110),y=Math.max(ch.bh+50,(-p.y*.5+.5)*innerHeight);
  b.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(-50%,-100%)';
 }
 
+/* bot ustidagi "-10 bal" yozuvi: tana (ko'krak) balandligidan o'ngga qarab ko'tariladi; gap pufagi esa bosh tepasida, shuning uchun ustma-ust tushmaydi */
+const pops=[];
+function pop(text,ch,color){
+ const e=document.createElement('div');e.className='pop';e.textContent=text;if(color)e.style.color=color;$('pops').appendChild(e);
+ pops.push({e,ch,t:0,ox:Math.random()*16-8});if(pops.length>12){pops.shift().e.remove()}
+}
+function updPops(dt){
+ for(let i=pops.length-1;i>=0;i--){const q=pops[i];q.t+=dt;
+  if(q.t>1.3){q.e.remove();pops.splice(i,1);continue}
+  const p=_bp.copy(q.ch.root.position);p.y+=1.0+q.t*.5;p.project(camera);
+  if(p.z>1){q.e.style.opacity=0;continue}
+  const x=(p.x*.5+.5)*innerWidth+46+q.ox,y=(-p.y*.5+.5)*innerHeight;
+  q.e.style.opacity=Math.min(1,(1.3-q.t)*2.5);q.e.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(0,-50%)'}
+}
+
 function cullChars(){
  camera.updateMatrixWorld();_pm.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);_fr.setFromProjectionMatrix(_pm);
  const t=c=>{_sp.center.copy(c.root.position);_sp.center.y+=1;c.root.visible=_fr.intersectsSphere(_sp)};
- if(CB)CB.bots.forEach(b=>t(b.c));remotes.forEach(r=>{if(r.char)t(r.char)});
+ if(CB)CB.bots.forEach(b=>t(b.c));if(W)W.dancers.forEach(c=>{t(c);if(c.off)c.root.visible=false});remotes.forEach(r=>{if(r.char)t(r.char)});
 }
 
 /* ===== LOG ===== */
 function say(t){const d=document.createElement('div');d.textContent=t;$('log').appendChild(d);
  while($('log').children.length>4)$('log').firstChild.remove();setTimeout(()=>d.remove(),6000)}
+
+/* ===== O'TIRISH / YOTISH / RAQS ===== */
+let seat=null,dAt=null,ctxT='';
+function nearestSpot(){
+ const p=me.root.position;let best=null,bd=1e9;
+ for(const s of spots){if(s.t==='dance')continue;const d=Math.hypot(p.x-s.x,p.z-s.z);if(d<s.r&&d<bd){bd=d;best=s}}
+ if(!best)for(const s of spots)if(s.t==='dance'&&Math.hypot(p.x-s.x,p.z-s.z)<s.r){best=s;break}
+ return best;
+}
+function standUp(){
+ if(seat){const o=seat.s.out;me.root.position.set(o[0],0,o[1]);me.root.rotation.y=Math.atan2(o[0]-seat.s.x,o[1]-seat.s.z);seat=null}
+ dAt=null;me.setPose(0);
+}
+function ctxPress(){
+ if(!me||!started||me.lock>0)return;initAudio();
+ if(me.pose){standUp();return}
+ const s=nearestSpot();if(!s||!me.grounded)return;
+ if(s.t==='dance'){me.setPose(3);dAt={x:me.root.position.x,z:me.root.position.z};return}
+ seat={s};me.setPose(s.t==='lie'?2:1);me.vx=me.vz=me.vy=0;
+}
+function seatTick(dt,len){
+ const s=seat.s,p=me.root.position,px=s.px===undefined?s.x:s.px,pz=s.pz===undefined?s.z:s.pz,k=1-Math.exp(-dt*10);
+ if(Math.hypot(p.x-px,p.z-pz)>3.5){seat=null;me.setPose(0);return}   // teleport/jang: o'rindiqdan chiqib ketamiz
+ p.x+=(px-p.x)*k;p.z+=(pz-p.z)*k;p.y+=(s.y-p.y)*k;me.root.rotation.y+=shortest(s.yaw-me.root.rotation.y)*k;
+ me.vx=me.vz=me.vy=0;me.speed=0;me.moving=me.running=me.air=false;me.grounded=true;me.jc=0;stepT=.25;
+ if(len>.45||jumpReq){jumpReq=false;standUp();return}
+ me.update(dt);
+}
+function updCtx(){
+ let t='';
+ if(started&&me&&me.lock<=0&&!document.body.classList.contains('modal')){
+  if(me.pose)t=me.pose===3?'RAQSNI TO‘XTATISH':'TURISH';
+  else if(me.grounded&&me.speed<3){const s=nearestSpot();if(s)t=s.t==='lie'?'YOTISH':s.t==='dance'?'RAQS':'O‘TIRISH'}
+ }
+ if(t!==ctxT){ctxT=t;const b=$('ctxBtn');b.textContent=t;b.classList.toggle('show',!!t)}
+}
 
 /* ===== BOSHQARUV ===== */
 function toggleChat(open){
@@ -301,7 +440,7 @@ function toggleChat(open){
  p.classList.toggle('open',o);$('chatBtn').classList.toggle('on',o);document.body.classList.toggle('chatting',o);
  if(o)setTimeout(()=>$('messageInput').focus(),60);else $('messageInput').blur();
 }
-function doPunch(){if(!me||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
+function doPunch(){if(!me||me.pose||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
 function createControls(){
  const joy=$('joystick'),stick=$('stick');
  let jr=null;
@@ -313,13 +452,14 @@ function createControls(){
  joy.addEventListener('pointerdown',e=>{jr=null;joystickPointer=e.pointerId;joy.setPointerCapture(e.pointerId);upd(e)});
  joy.addEventListener('pointermove',e=>{if(joystickPointer===e.pointerId)upd(e)});
  joy.addEventListener('pointerup',reset);joy.addEventListener('pointercancel',reset);
- addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(e.code==='Space'){e.preventDefault();if(!e.repeat)jumpReq=true}});
+ addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(e.code==='KeyE'&&!e.repeat)ctxPress();if(e.code==='Space'){e.preventDefault();if(!e.repeat)jumpReq=true}});
  addEventListener('keyup',e=>{keys[e.code]=false});
  $('messageInput').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')sendChat();if(e.key==='Escape')toggleChat(false)});
  $('send').onclick=sendChat;
  $('chatBtn').onclick=()=>toggleChat();
  $('punch').addEventListener('pointerdown',e=>{e.preventDefault();doPunch()});
  $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpReq=true});
+ $('ctxBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();ctxPress()});
  $('ptt').onclick=()=>VO.on?pttUp():pttDown();
  const cv=renderer.domElement;
  cv.addEventListener('pointerdown',e=>{if(camPointer!==null)return;camPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;cv.setPointerCapture(e.pointerId)});
@@ -354,7 +494,11 @@ function updateMe(dt){
  let ix=joyDir.x,iy=-joyDir.y;
  if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;
  if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;
- const len=Math.hypot(ix,iy),has=len>.12&&me.lock<=0;
+ const len=Math.hypot(ix,iy);
+ if(me.pose&&me.lock>0){seat=null;dAt=null;me.setPose(0)}     // yiqilsak yoki jang boshlansa turib ketamiz
+ if(seat){seatTick(dt,len);return}
+ if(me.pose===3&&(len>.3||jumpReq||(dAt&&Math.hypot(me.root.position.x-dAt.x,me.root.position.z-dAt.z)>4))){me.setPose(0);dAt=null;jumpReq=false}
+ const has=len>.12&&me.lock<=0&&me.pose!==3;
  let tvx=0,tvz=0;
  if(has){
   const nx=ix/len,ny=iy/len,fx=-Math.sin(camA),fz=Math.cos(camA),rx=-fz,rz=fx;
@@ -399,6 +543,7 @@ function updateRemotes(dt){
   r.sp=(r.sp||0)+(inst-(r.sp||0))*Math.min(1,dt*5);
   c.air=Math.abs(r.ty-p.y)>.12;c.speed=r.sp;c.moving=r.sp>.45;c.running=c.running?r.sp>3.4:r.sp>4.2;
   if(c.moving&&me){r.st=(r.st||0)-dt;if(r.st<=0){r.st=1.15/Math.max(1.2,r.sp);const d=p.distanceTo(me.root.position);if(d<16)sndStep(.6*(1-d/16))}}
+  c.setPose(r.q|0);
   if(me)push2(me,c,1,0);
   c.update(dt);
  });
@@ -433,8 +578,8 @@ async function connect(){
 }
 function sendPresence(){
  if(!me)return;const p=me.root.position;
- const o={k:'p',n:myInfo.name,g:myInfo.g,s:P.score,t:P.rank||'',x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),r:+me.root.rotation.y.toFixed(2)};
- const s=o.x+'|'+o.y+'|'+o.z+'|'+o.r+'|'+o.s+'|'+o.t;
+ const o={k:'p',q:me.pose|0,n:myInfo.name,g:myInfo.g,s:P.score,t:P.rank||'',x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),r:+me.root.rotation.y.toFixed(2)};
+ const s=o.x+'|'+o.y+'|'+o.z+'|'+o.r+'|'+o.s+'|'+o.t+'|'+o.q;
  if(s===lastSent&&performance.now()-(sendPresence.t||0)<1000)return;
  lastSent=s;sendPresence.t=performance.now();netSend(o);
 }
@@ -444,7 +589,7 @@ function handle(d){
   if(!fin(d.x)||!fin(d.z))return;
   let r=remotes.get(id);
   if(!r){r={char:null,pending:false,name:String(d.n||'Taiman').slice(0,16),g:(Number.isInteger(d.g)&&d.g>=0&&d.g<CHARS.length)?d.g:0,tx:d.x,tz:d.z,ty:0,tyaw:d.r||0,seen:Date.now()};remotes.set(id,r)}
-  r.seen=Date.now();r.score=fin(d.s)?d.s:0;r.rk=typeof d.t==='string'?d.t.slice(0,20):'';if(r.char)r.char.setRank(r.rk);r.ty=fin(d.y)?d.y:0;r.tx=d.x;r.tz=d.z;r.tyaw=fin(d.r)?d.r:0;
+  r.seen=Date.now();r.score=fin(d.s)?d.s:0;r.rk=typeof d.t==='string'?d.t.slice(0,20):'';if(r.char)r.char.setRank(r.rk);r.q=(d.q===1||d.q===2||d.q===3)?d.q:0;r.ty=fin(d.y)?d.y:0;r.tx=d.x;r.tz=d.z;r.tyaw=fin(d.r)?d.r:0;
   if(!r.char&&!r.pending){
    r.pending=true;
    loadGltf(r.g).then(gl=>{
@@ -554,7 +699,17 @@ async function preload(){
   .then(gl=>{okM[i]=true;gls[i]=gl}).catch(e=>{console.error(c.model,e);okM[i]=false}).then(()=>{prog[i]=1;upd()})));
  await new Promise(r=>setTimeout(r,350));
  warmup();
- buildGrid();$('intro').classList.remove('loading');
+ buildGrid();$('intro').classList.remove('loading');rotHint();
+}
+/* telefonni birinchi marta portret holatda ochganda: gorizontal o'ynash eslatiladi (bir marta) */
+function rotHint(){
+ let seen=false;try{seen=!!localStorage.getItem('tg_rot')}catch(e){}
+ const box=$('rot'),port=()=>innerHeight>innerWidth,mob=()=>matchMedia('(pointer:coarse)').matches||innerWidth<700||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+ if(seen||!mob()||!port())return;
+ const done=()=>{box.classList.remove('open');try{localStorage.setItem('tg_rot','1')}catch(e){}};
+ box.classList.add('open');
+ $('rotOk').onclick=()=>{done();try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}};
+ addEventListener('resize',()=>{if(!port()&&box.classList.contains('open'))done()});
 }
 init();createControls();animate();preload();
 $('go').onclick=async()=>{
@@ -583,7 +738,7 @@ function animate(t){
    if(f<50){if(++fpsBad>=2&&PRcur>1){fpsBad=0;PRcur=Math.max(1,PRcur-.25);applyPR()}}else fpsBad=0}}
  }
  updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);cullChars();
- if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
+ if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));if(W)W.dancers.forEach(c=>placeBubble(c));updPops(dt);updCtx();remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
  updRadio();
  renderer.render(scene,camera);
 }

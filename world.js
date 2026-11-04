@@ -8,7 +8,7 @@ export function initWorld(C){
  const glow=(c,o)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false});
  const lbl=(t,col,w,x,y,z)=>{const cn=document.createElement('canvas');cn.width=512;cn.height=128;const g=cn.getContext('2d');g.textAlign='center';g.font='bold 72px system-ui';g.shadowColor=col;g.shadowBlur=20;g.fillStyle=col;g.fillText(t,256,90);
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cn),transparent:true,depthWrite:false,fog:false}));s.scale.set(w,w/4,1);s.position.set(x,y,z);scene.add(s)};
- const K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a)},tree=makeTree(K);
+ const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam},tree=makeTree(K);
  const coin=(x,y,z,v=25,s=5)=>{const m=put(new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.07,20),mat(0xf2b92a,0x9a6a00,.6)),x,y,z,false);m.rotation.x=Math.PI/2;coins.push({m,x,y,z,v,s,t:0})};
  // landshaft: yo'llar, suv, tog'lar, bulutlar, daraxtlar
  flat(8,180,0x2b2f36,0,0,.02);flat(180,8,0x2b2f36,0,0,.021);
@@ -74,6 +74,12 @@ export function initWorld(C){
   for(const s of spin){if(s.y)s.m.rotation.y+=s.s*dt;else s.m.rotation.z+=s.s*dt}
   for(const c of clouds){c.position.x+=dt*1.5;if(c.position.x>170)c.position.x=-170}
   const me=C.me();if(!me)return;const p=me.root.position;
+  // bar: ichkariga kirganda tashqi qobiq (devor+tom) yashiriladi; uzoqdagi barlarda animatsiya o'chadi
+  for(const b of K.bars){b.near=Math.abs(p.x-b.x)<b.hw+45&&Math.abs(p.z-b.z)<b.hd+45;const ins=Math.abs(p.x-b.x)<b.hw-.3&&Math.abs(p.z-b.z)<b.hd-.3&&p.y<3;if(ins!==b.ins){b.ins=ins;for(const m of b.shell)m.visible=!ins}
+   // ichkarida kamera devor orqasiga o'tib qolsa, o'sha devor yashiriladi (personaj ko'rinib tursin)
+   if(b.ins&&C.cam){const c=C.cam();b.wh=1;for(const w of b.walls){const o=w.ax==='x'?(c.x-b.x)*w.sg:(c.z-b.z)*w.sg;w.m.visible=o<(w.ax==='x'?b.hw:b.hd)-.5}}
+   else if(b.wh){b.wh=0;for(const w of b.walls)w.m.visible=true}}
+  for(const f of ticks)f(dt,wT);
   coins.forEach((c,i)=>{if(c.t>0){c.t-=dt;c.m.visible=c.t<=0;return}c.m.rotation.z+=dt*3;c.m.position.y=c.y+Math.sin(wT*2+i)*.08;
    if(Math.hypot(c.x-p.x,c.z-p.z)<1.2&&Math.abs(c.y-p.y-1)<1.6){c.t=30;c.m.visible=false;addMoney(c.v);addScore(c.s);tone(1318,.07,.09,'square');setTimeout(()=>tone(1760,.14,.09,'square'),60)}});
   gemT-=dt;gem.visible=gemT<=0;if(gem.visible&&Math.hypot(30-p.x,38-p.z)<1.4&&Math.abs(15.8-p.y-1)<1.6){gemT=60;addScore(500);addMoney(1000);toast('Eng baland olmos! +500 bal');tone(660,.3,.12,'triangle',1320)}
@@ -89,5 +95,5 @@ export function initWorld(C){
   if(race){race.t+=dt;if(p.z<FZ&&Math.abs(p.x-SX)<8){addScore(300);addMoney(500);toast('Siz g‘olibsiz! +300 bal');netSend({k:'r',a:'win'});race=null}else if(race.t>150)race=null}
   else if(rcd<=0&&Math.hypot(p.x-SX,p.z-SZ)<3)for(const[id,r]of C.remotes)if(Math.hypot(r.tx-SX,r.tz-SZ)<3&&C.myInfo.id<id){rcd=20;netSend({k:'r',a:'ask',to:id});toast('Poyga taklifi yuborildi…');break}
  }
- return{update,onNet,houses};
+ return{update,onNet,houses,bars:K.bars,dancers:K.dancers};
 }
