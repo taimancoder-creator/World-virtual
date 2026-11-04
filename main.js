@@ -205,6 +205,9 @@ function tagSprite(name,color,rank){
  sp.scale.set(1.6,rank?.6:.4,1);sp.position.y=rank?2.25:2.15;return sp;
 }
 const _p0=new THREE.Vector3(),_p1=new THREE.Vector3(),_p2=new THREE.Vector3(),_t1=new THREE.Vector3(),_t2=new THREE.Vector3(),_a=new THREE.Vector3(),_Z=new THREE.Vector3(0,0,1),_q1=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_q4=new THREE.Quaternion(),_q5=new THREE.Quaternion(),_q6=new THREE.Quaternion(),_q7=new THREE.Quaternion(),_qP=new THREE.Quaternion();
+// SALTO (front flip): prototipdagi vaqt oralig'i va suyak nomlari
+const FLIP_DUR=1.5,_fe=new THREE.Euler(),_fq=new THREE.Quaternion(),
+ FLIP_BONES={hips:'Hips',spine:'Spine',spine01:'Spine01',spine1:'Spine01',spine02:'Spine02',spine2:'Spine02',leftupleg:'LeftUpLeg',rightupleg:'RightUpLeg',leftleg:'LeftLeg',rightleg:'RightLeg',leftarm:'LeftArm',rightarm:'RightArm',leftforearm:'LeftForeArm',rightforearm:'RightForeArm'};
 class Char{
  constructor(gltf,name,g,isMe){
   const clone=SkeletonUtils.clone(gltf.scene);
@@ -236,6 +239,10 @@ class Char{
    if(k==='th'&&g.length>2){g.sort((a,b)=>b.y-a.y);const dr=new Set(g.slice(2));this.limbs=this.limbs.filter(L=>!dr.has(L));g=g.slice(0,2)}
    if(g.length>=2){const m=g.reduce((t,L)=>t+L.x,0)/g.length;g.forEach(L=>L.side=L.x>=m?1:-1)}}
   clone.traverse(o=>{if(o.isBone&&/foot|toe|ankle/.test(o.name.toLowerCase()))this.feet.push(o)});if(this.feet.length)this.h0=this.feetMin();
+  // salto uchun: tayanch (rest) holat va kerakli suyaklar (prototipdagi bones/restPose)
+  this.flipT=-1;this.fy=0;this.fb={};this.fr=[];this.rq=new Map();
+  clone.traverse(o=>{if(!o.isBone)return;this.fr.push({b:o,q:o.quaternion.clone(),p:o.position.clone()});
+   const k=FLIP_BONES[o.name.toLowerCase().replace(/^mixamorig/,'').replace(/[^a-z0-9]/g,'')];if(k&&!this.fb[k]){this.fb[k]=o;this.rq.set(o,o.quaternion.clone())}});
   this.tagCol=isMe?'#00eaff':'#ff62d5';this.rank='';this.tag=tagSprite(name,this.tagCol);this.root.add(this.tag);
   this.bubble=document.createElement('div');this.bubble.className='bubble'+(isMe?'':' o');
   this.bubble.innerHTML='<b></b><span></span>';this.bubble.firstChild.textContent=name;$('bubbles').appendChild(this.bubble);
@@ -319,6 +326,58 @@ class Char{
   else{v.set(s*.2,-.85,.3);u.set(-s*.08,-.25,.95)}
  }
  setPose(q){this.pose=q|0}
+ // ===== SALTO (FRONT FLIP) =====
+ flip(){
+  if(this.flipT>=0||this.pose)return false;
+  this.flipT=0;this.fy=0;this.mixer.stopAllAction();this.cur=null;this.mod.clear();this.wv=0;this.wvw=0;this.pw=0;this.tag.visible=false;return true;
+ }
+ // prototipdagi rotateBone: tayanch kvaternion * Euler(XYZ)
+ rb(n,x,y,z){const b=this.fb[n];if(!b)return;_fq.setFromEuler(_fe.set(x||0,y||0,z||0,'XYZ'));b.quaternion.copy(this.rq.get(b)).multiply(_fq)}
+ flipRest(){for(const r of this.fr){r.b.quaternion.copy(r.q);r.b.position.copy(r.p)}}
+ // prototipdagi animateFrontFlip(t): 1) tayyorlanish 2) sakrash 3) g'ujanak + 360 aylanish 4) oyoqni yozib qo'nish
+ flipPose(t){
+  const H=1.8,R=(n,x,y,z)=>this.rb(n,x,y,z);let a=0,off=0;
+  this.flipRest();
+  if(t<.18){
+   const b=Math.sin(t/.18*Math.PI/2);
+   R('Hips',.25*b);R('Spine',.12*b);R('LeftArm',2.4*b,0,-.1);R('RightArm',2.4*b,0,.1);
+  }else if(t<.35){
+   const j=Math.sin((t-.18)/.17*Math.PI/2);
+   R('Hips',.25*j);R('Spine',.3*j);R('LeftArm',1.4*j,0,-.2);R('RightArm',1.4*j,0,.2);
+   off=H*.65*j;
+  }else if(t<.78){
+   const p=(t-.35)/.43;a=Math.PI*2*p;
+   R('Hips',.35);R('Spine',.5);R('Spine01',.35);R('Spine02',.25);
+   R('LeftUpLeg',-1.65);R('RightUpLeg',-1.65);R('LeftLeg',2);R('RightLeg',2);
+   R('LeftArm',1.5,0,-.3);R('RightArm',1.5,0,.3);R('LeftForeArm',.7);R('RightForeArm',.7);
+   off=H*(.65+Math.sin(p*Math.PI)*.15);
+  }else{
+   const p=Math.min((t-.78)/.22,1),k=1-p;a=Math.PI*2;
+   R('Hips',.15*k);R('LeftUpLeg',-1.15*k);R('RightUpLeg',-1.15*k);R('LeftLeg',1.35*k);R('RightLeg',1.35*k);
+   R('LeftArm',1.4*k,0,-.2);R('RightArm',1.4*k,0,.2);R('LeftForeArm',.7*k);R('RightForeArm',.7*k);
+   off=H*.65*k;
+  }
+  // gavda markazi (H/2) atrofida aylanish: pivot burchak + siljish bilan; root (fizika) joyida qoladi
+  const h=H/2;
+  this.pivot.rotation.set(a,0,0);
+  this.pivot.position.set(0,off+h-h*Math.cos(a),-h*Math.sin(a));
+  this.fy=off;
+ }
+ flipEnd(){
+  this.flipRest();
+  this.pivot.rotation.set(0,0,0);this.pivot.position.set(0,0,0);this.tag.visible=true;this.flipT=-1;this.fy=0;
+  // oddiy animatsiyaga (idle/yurish/yugurish) qaytamiz; shu kadrning o'zida mixer qayta yozadi
+  const a=this.acts[this.moving?(this.running&&this.acts.run?'run':'walk'):'idle']||this.acts.idle;
+  if(a){a.reset().play();this.cur=a}else this.cur=null;
+ }
+ flipStep(dt){
+  if(this.lock>0){this.flipEnd();return}   // yiqilsak (HP 0) salto to'xtaydi
+  this.flipT+=dt/FLIP_DUR;
+  if(this.flipT>=1){this.flipEnd();return}
+  this.flipPose(this.flipT);
+  this.model.position.y=this.base.y;this.model.rotation.x=0;
+  if(this.bt>0){this.bt-=dt;if(this.bt<=0)this.bubble.style.display='none'}
+ }
  say(t){this.bubble.lastChild.textContent=t;this.bubble.style.display='block';this.bt=8;this.bh=0}
  applyLimbs(){
   const run=clamp(this.speed/RUN,0,1),amp=this.mw*(.35+.5*run),air=this.aw,s=Math.sin(this.ph),c=Math.cos(this.ph);
@@ -337,6 +396,7 @@ class Char{
  }
  update(dt){
   this.dtc=dt;if(this.lock>0)this.lock-=dt;
+  if(this.flipT>=0){this.flipStep(dt);if(this.flipT>=0)return}
   {
    let n=this.moving?(this.running?'run':'walk'):'idle';
    if(this.pose)n='idle';
@@ -414,7 +474,7 @@ function standUp(){
  dAt=null;me.setPose(0);
 }
 function ctxPress(){
- if(!me||!started||me.lock>0)return;initAudio();
+ if(!me||!started||me.lock>0||me.flipT>=0)return;initAudio();
  if(me.pose){standUp();return}
  const s=nearestSpot();if(!s||!me.grounded)return;
  if(s.t==='dance'){me.setPose(3);dAt={x:me.root.position.x,z:me.root.position.z};return}
@@ -443,7 +503,11 @@ function toggleChat(open){
  p.classList.toggle('open',o);$('chatBtn').classList.toggle('on',o);document.body.classList.toggle('chatting',o);
  if(o)setTimeout(()=>$('messageInput').focus(),60);else $('messageInput').blur();
 }
-function doPunch(){if(!me||me.pose||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
+function doPunch(){if(!me||me.pose||me.flipT>=0||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
+function doFlip(){
+ if(!me||!started||me.flipT>=0||me.pose||seat||me.lock>0||!me.grounded||document.body.classList.contains('modal'))return;
+ initAudio();if(!me.flip())return;sndJump(1);netSend({k:'a',a:'flip'});
+}
 function createControls(){
  const joy=$('joystick'),stick=$('stick');
  let jr=null;
@@ -455,13 +519,14 @@ function createControls(){
  joy.addEventListener('pointerdown',e=>{jr=null;joystickPointer=e.pointerId;joy.setPointerCapture(e.pointerId);upd(e)});
  joy.addEventListener('pointermove',e=>{if(joystickPointer===e.pointerId)upd(e)});
  joy.addEventListener('pointerup',reset);joy.addEventListener('pointercancel',reset);
- addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(e.code==='KeyE'&&!e.repeat)ctxPress();if(e.code==='Space'){e.preventDefault();if(!e.repeat)jumpReq=true}});
+ addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(e.code==='KeyE'&&!e.repeat)ctxPress();if(e.code==='KeyF'&&!e.repeat)doFlip();if(e.code==='Space'){e.preventDefault();if(!e.repeat)jumpReq=true}});
  addEventListener('keyup',e=>{keys[e.code]=false});
  $('messageInput').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')sendChat();if(e.key==='Escape')toggleChat(false)});
  $('send').onclick=sendChat;
  $('chatBtn').onclick=()=>toggleChat();
  $('punch').addEventListener('pointerdown',e=>{e.preventDefault();doPunch()});
  $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpReq=true});
+ $('flipBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();doFlip()});
  $('ctxBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();ctxPress()});
  $('ptt').onclick=()=>VO.on?pttUp():pttDown();
  const cv=renderer.domElement;
@@ -498,6 +563,8 @@ function updateMe(dt){
  if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;
  if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;
  const len=Math.hypot(ix,iy);
+ // salto davomida joyida turadi: yurish/sakrash/fizika to'xtatiladi, tugagach boshqaruv o'zi qaytadi
+ if(me.flipT>=0){jumpReq=false;me.vx=me.vz=me.vy=0;me.speed=0;me.moving=me.running=me.air=false;me.grounded=true;me.jc=0;stepT=.25;me.update(dt);return}
  if(me.pose&&me.lock>0){seat=null;dAt=null;me.setPose(0)}     // yiqilsak yoki jang boshlansa turib ketamiz
  if(seat){seatTick(dt,len);return}
  if(me.pose===3&&(len>.3||jumpReq||(dAt&&Math.hypot(me.root.position.x-dAt.x,me.root.position.z-dAt.z)>4))){me.setPose(0);dAt=null;jumpReq=false}
@@ -525,7 +592,7 @@ function updateCamera(dt){
  camA+=shortest(cameraAngle-camA)*(1-Math.exp(-dt*14));
  camP+=(cameraPitch-camP)*(1-Math.exp(-dt*10));
  const wantD=(me.running?4.5:3.8)*camK;camDist+=(wantD-camDist)*(1-Math.exp(-dt*4));
- camY+=(c.y-camY)*(1-Math.exp(-dt*6));
+ camY+=(c.y+(me.fy||0)*.6-camY)*(1-Math.exp(-dt*6));
  const cp=Math.cos(camP),sp=Math.sin(camP),ty=camY+(camK<1?1.0:1.15);
  camera.position.set(foc.x+Math.sin(camA)*camDist*cp,Math.max(.35,ty+sp*camDist),foc.z-Math.cos(camA)*camDist*cp);
  camera.lookAt(foc.x,ty+Math.max(0,-camP)*2,foc.z);
@@ -605,7 +672,8 @@ function handle(d){
   if(r.char)r.char.say(t);else say(r.name+': '+t)}
  else if(d.k==='a'){const r=remotes.get(id);if(!r||!r.char)return;
   if(d.a==='punch'){r.char.punch(d.c|0);if(me&&r.char.root.position.distanceTo(me.root.position)<20)sndPunch()}
-  else if(d.a==='wave')r.char.wave(2)}
+  else if(d.a==='wave')r.char.wave(2)
+  else if(d.a==='flip')r.char.flip()}
  else if(d.k==='r'||d.k==='b'){if(W)W.onNet(id,d)}
  else if(d.k==='h'||d.k==='f'||d.k==='t'||d.k==='lv'){if(CB)CB.onNet(id,d)}
  else if(d.k==='v'){playVoice(id,d)}
