@@ -366,7 +366,10 @@ class Char{
     R('LeftArm',1.5,0,-.1);R('RightArm',1.5,0,.1);R('LeftForeArm',.27);R('RightForeArm',.17);
    }else{
     R('Hips',.35);R('Spine',.5);R('Spine01',.35);R('Spine02',.25);
-    R('LeftUpLeg',-1.65);R('RightUpLeg',-1.65);R('LeftLeg',2);R('RightLeg',2);
+R('LeftUpLeg',-1.65,0,-0.35);
+R('RightUpLeg',-1.65,0,0.35);
+R('LeftLeg',2);
+R('RightLeg',2);
     R('LeftArm',1.5,0,-.3);R('RightArm',1.5,0,.3);R('LeftForeArm',.7);R('RightForeArm',.7);
    }
    off=H*(.65+Math.sin(p*Math.PI)*.15);
