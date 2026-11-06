@@ -164,3 +164,13 @@ body.modal #flipBtn{opacity:.3;pointer-events:none}
 @media(max-height:480px){#sideBtn{right:calc(var(--sr) + 16px + var(--bt)*3 + 26px);bottom:calc(var(--sb) + 10px)}}
 body.chatting #sideBtn{opacity:0;pointer-events:none}
 body.modal #sideBtn{opacity:.3;pointer-events:none}
+
+/* ---------- qo'shimcha SALTO tugmalari (2-qator): BACK, T-BACK, T-FRONT — FRONT/SIDE tugmalarining tepasida ---------- */
+.flipx{position:fixed;z-index:20;bottom:calc(var(--sb) + 22px + var(--bt) + 10px);color:#fff}
+.flipx span{font-size:clamp(7px,1.8vmin,9px);letter-spacing:.3px}
+#backBtn{right:calc(var(--sr) + 16px + var(--bt)*2 + 22px);background:linear-gradient(165deg,#6bffb0,#10a85c);border-color:#c8ffe2;color:#032a14}
+#twBBtn{right:calc(var(--sr) + 16px + var(--bt)*3 + 32px);background:linear-gradient(165deg,#ffe36b,#e09a10);border-color:#fff1c0;color:#2a1700}
+#twFBtn{right:calc(var(--sr) + 16px + var(--bt)*4 + 42px);background:linear-gradient(165deg,#9b8bff,#5a3ad6);border-color:#d8d0ff}
+@media(max-height:480px){.flipx{bottom:calc(var(--sb) + 10px + var(--bt) + 6px)}#backBtn{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px)}#twBBtn{right:calc(var(--sr) + 16px + var(--bt)*3 + 26px)}#twFBtn{right:calc(var(--sr) + 16px + var(--bt)*4 + 34px)}}
+body.chatting .flipx{opacity:0;pointer-events:none}
+body.modal .flipx{opacity:.3;pointer-events:none}
