@@ -659,29 +659,35 @@ function updateRemotes(dt){
  });
 }
 /* ===== TARMOQ (MQTT) ===== */
-let net=null,mqttClient=null,lastSent='';
+let net=null,lastSent='',netSeq=0;
+const mqttPool=[];   // bir vaqtning o'zida 2-3 ta broker (hamma o'yinchilar umumiy broker orqali uchrashadi)
+const netUp=()=>mqttPool.some(c=>c.connected);
 const loadJs=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.appendChild(e)});
-function netSend(o){try{if(mqttClient&&mqttClient.connected)mqttClient.publish(net.base,JSON.stringify({...o,id:myInfo.id}))}catch(e){}}
+function netSend(o){if(!net)return;const m=JSON.stringify({...o,id:myInfo.id,u:++netSeq});mqttPool.forEach(c=>{try{if(c.connected)c.publish(net.base,m)}catch(e){}})}
 const fin=v=>typeof v==='number'&&isFinite(v);
 async function connect(){
  if(!window.mqtt){try{await loadJs('https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js')}catch(e){try{await loadJs('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js')}catch(e2){say('Tarmoq kutubxonasi yuklanmadi: yolg‘iz rejim');return}}}
  const code=(location.hash.match(/r=([a-z0-9]{4,12})/)||[])[1]||'olam';
  net={base:'taiman-gta-v1/'+code};
  const B=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081'];
- let bi=0,fails=0,up=false;
- function go(){
-  const u=B[bi%B.length];let ok=false,dead=false;
-  const c=mqtt.connect(u,{clientId:'tg'+myInfo.id+bi,keepalive:30,reconnectPeriod:2000,connectTimeout:6000,clean:true,
-   will:{topic:net.base,payload:JSON.stringify({k:'l',id:myInfo.id}),qos:0}});
-  mqttClient=c;
-  const bad=()=>{if(ok||dead)return;dead=true;clearTimeout(to);try{c.end(true)}catch(e){}bi++;fails++;setTimeout(go,Math.min(6000,700*fails))};
-  const to=setTimeout(bad,8000);
-  c.on('connect',()=>{ok=true;clearTimeout(to);fails=0;c.subscribe(net.base,err=>{if(err)return;up=true;$('chip').classList.remove('off');say('Onlayn olamga ulandingiz');sendPresence()})});
-  c.on('message',(t,m)=>{try{const d=JSON.parse(m.toString());if(d&&typeof d==='object'&&d.id&&d.id!==myInfo.id)handle(d)}catch(e){}});
-  c.on('close',()=>{if(!ok)bad();else if(up){up=false;$('chip').classList.add('off');say('Aloqa uzildi, qayta ulanmoqda…')}});
-  c.on('error',()=>{if(!ok)bad()});
+ const seen=new Map(),started=[];let wasUp=false;
+ // bir xil xabar ikki brokerdan kelsa, bir marta ishlanadi
+ const dup=d=>{if(!d.u)return false;let s=seen.get(d.id);if(!s)seen.set(d.id,s=new Set());if(s.has(d.u))return true;s.add(d.u);if(s.size>300)s.delete(s.values().next().value);return false};
+ const refresh=()=>{const u=netUp();
+  if(u&&!wasUp){wasUp=true;$('chip').classList.remove('off');say('Onlayn olamga ulandingiz')}
+  else if(!u&&wasUp){wasUp=false;$('chip').classList.add('off');say('Aloqa uzildi, qayta ulanmoqda…')}};
+ function start(i){
+  if(started[i])return;started[i]=1;
+  const c=mqtt.connect(B[i],{clientId:'tg'+myInfo.id+i,keepalive:30,reconnectPeriod:3000,connectTimeout:6000,clean:true});
+  mqttPool.push(c);
+  c.on('connect',()=>{c.subscribe(net.base,err=>{if(err)return;lastSent='';sendPresence();refresh()})});
+  c.on('message',(t,m)=>{try{const d=JSON.parse(m.toString());if(d&&typeof d==='object'&&d.id&&d.id!==myInfo.id&&!dup(d))handle(d)}catch(e){}});
+  c.on('close',refresh);
+  c.on('error',()=>{});
  }
- go();
+ start(0);start(1);
+ // 2 tadan kam broker ishlayotgan bo'lsa, uchinchisi ham yoqiladi
+ setInterval(()=>{if(!started[2]&&mqttPool.filter(c=>c.connected).length<2)start(2)},8000);
  setInterval(sendPresence,150);
  addEventListener('pagehide',()=>netSend({k:'l'}));
 }
@@ -746,7 +752,7 @@ function seg(){
 }
 async function pttDown(){
  initAudio();if(VO.on||!started)return;
- if(!mqttClient||!mqttClient.connected){say('Ratsiya uchun onlayn bo‘ling');return}
+ if(!netUp()){say('Ratsiya uchun onlayn bo‘ling');return}
  VO.on=true;$('ptt').classList.add('on');
  if(!await micInit()){VO.on=false;$('ptt').classList.remove('on');return}
  if(!VO.on)return;sndPtt();seg();
