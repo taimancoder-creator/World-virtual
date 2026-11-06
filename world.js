@@ -13,7 +13,8 @@ export function initWorld(C){
  // landshaft: yo'llar, suv, tog'lar, bulutlar, daraxtlar
  flat(8,180,0x2b2f36,0,0,.02);flat(180,8,0x2b2f36,0,0,.021);
  const pond=put(new THREE.Mesh(new THREE.CircleGeometry(13,32),new THREE.MeshStandardMaterial({color:0x2a8fd6,roughness:.15,metalness:.2})),-45,.05,45,false);pond.rotation.x=-Math.PI/2;
- for(let i=0;i<8;i++){const g=new THREE.Group();for(let j=0;j<3;j++){const b=new THREE.Mesh(new THREE.SphereGeometry(4+R()*3,10,8),new THREE.MeshBasicMaterial({color:0xffffff,fog:false}));b.position.set(j*5-5,R()*2,R()*3);b.scale.y=.55;g.add(b)}g.position.set((R()-.5)*300,105+R()*30,(R()-.5)*300);g.scale.setScalar(2.4);scene.add(g);clouds.push(g)}
+ const cgeo=new THREE.SphereGeometry(1,8,6),cmat=new THREE.MeshBasicMaterial({color:0xffffff,fog:false});
+ for(let i=0;i<8;i++){const g=new THREE.Group();for(let j=0;j<3;j++){const b=new THREE.Mesh(cgeo,cmat);b.scale.setScalar(4+R()*3);b.position.set(j*5-5,R()*2,R()*3);b.scale.y*=.55;g.add(b)}g.position.set((R()-.5)*300,105+R()*30,(R()-.5)*300);g.scale.setScalar(2.4);scene.add(g);clouds.push(g)}
  for(let i=0;i<26;i++){let x,z;do{x=(R()-.5)*170;z=(R()-.5)*170}while(Math.abs(x)<8||Math.abs(z)<8||Math.hypot(x+45,z-45)<16||Math.hypot(x,z)<14||Math.abs(x+40)<8&&z<0);tree(x,z)}
  // 4 ta baland bino
  const wc=document.createElement('canvas');wc.width=64;wc.height=128;const wx=wc.getContext('2d');wx.fillStyle='#26303f';wx.fillRect(0,0,64,128);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {mergeVertices,mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 // Binolar: uy (tomi, eshigi, derazalari, mebel), bank (ustunlar, pediment, zinapoya), bar (soyabon, vitrina), park (favvora, skameykalar), daraxt.
 const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8},o||{}));
 const BX=new THREE.BoxGeometry(1,1,1);
@@ -9,7 +9,6 @@ const TRIM=M(0x4a3626),WOOD=M(0x7a5232),STONE=M(0xd9d0b8),STONE2=M(0xb4aa90),
  GOLD=M(0xd4a62a,{metalness:.6,roughness:.35}),WALL=M(0xe6dcc2),ROOF=M(0xa5442e,{roughness:.9}),BRICK=M(0x8a4a3a),
  GLASS=M(0x9fd0f0,{roughness:.1,metalness:.3,emissive:0x2a4a66,emissiveIntensity:.5}),GLASSD=M(0x20324a,{roughness:.15,metalness:.4,emissive:0x1a2a40,emissiveIntensity:.6}),
  GABLE=new THREE.MeshStandardMaterial({color:0xe6dcc2,side:THREE.DoubleSide,roughness:.85}),AW1=M(0xc43b3b),AW2=M(0xf1e6d0),BRONZE=M(0x4a3418,{metalness:.4,roughness:.5});
-
 function sign(t,fg,bg){
  const cn=document.createElement('canvas');cn.width=512;cn.height=128;const g=cn.getContext('2d');
  g.fillStyle=bg;g.fillRect(0,0,512,128);g.strokeStyle=fg;g.lineWidth=6;g.strokeRect(8,8,496,112);
@@ -22,54 +21,78 @@ function win(p,x,z,rot,y=1.9){
  bx(g,1.5,1.3,.44,TRIM,0,0,0);bx(g,1.26,1.06,.46,GLASS,0,0,0,false);bx(g,1.26,.07,.5,TRIM,0,0,0,false);bx(g,.07,1.06,.5,TRIM,0,0,0,false);bx(g,1.8,.1,.7,TRIM,0,-.7,0);
  p.add(g);
 }
-
-
-/* ---------- professional daraxtlar: tartibsiz yaproq to'plamlari, egilgan tana, shoxlar, qarag'ay qavatlari ---------- */
+/* ---------- DARAXTLAR: tana + shoxlar + barg ZARRALARI (kichik past-poligonli bo'laklar) ----------
+   Hammasi InstancedMesh: bir xil turdagi daraxtlar bitta chizish chaqiruviga birlashadi, hudud bo'yicha katakchalarga
+   bo'linadi (kamera/soya ko'rinmagan kataklarni o'tkazib yuboradi). Eski variantdan ~40 baravar yengil. */
 function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function paint(g,lo,hi,y0,y1,vary=.12){
- const p=g.attributes.position,c=new Float32Array(p.count*3),a=new THREE.Color(lo),b=new THREE.Color(hi),t=new THREE.Color();
- for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=Math.min(1,Math.max(0,(y-y0)/(y1-y0))),n=Math.sin(x*5.1+y*4.3)*Math.sin(z*4.7-y*3.1)*.5+.5;
-  t.copy(a).lerp(b,k*.8+n*.35).multiplyScalar(1-vary+n*vary*2);c[i*3]=t.r;c[i*3+1]=t.g;c[i*3+2]=t.b}
- g.setAttribute('color',new THREE.BufferAttribute(c,3));return g;
+const MOBILE=typeof matchMedia==='function'&&(matchMedia('(pointer:coarse)').matches||innerWidth<700);
+const NPART=MOBILE?70:110,CELL=48;
+const LEAF_PAL=[[0x1f4d24,0x5ba13c],[0x265a22,0x6bb043],[0x2d5a1c,0x9ab43c],[0x1b4a2c,0x4f9a46]];
+function fin(g){g.computeVertexNormals();if(g.index)g=g.toNonIndexed();g.deleteAttribute('uv');return g}
+function tint(g,fn){const p=g.attributes.position,c=new Float32Array(p.count*3),t=new THREE.Color();
+ for(let i=0;i<p.count;i++){fn(t,p.getX(i),p.getY(i),p.getZ(i));c[i*3]=t.r;c[i*3+1]=t.g;c[i*3+2]=t.b}
+ g.setAttribute('color',new THREE.BufferAttribute(c,3));return g}
+// shox/tana bo'lagi: ingichkalashuvchi 5 yoqli silindr (p0 -> p1)
+function limb(a,b,r0,r1){
+ const d=new THREE.Vector3().subVectors(b,a),L=d.length();let g=new THREE.CylinderGeometry(r1,r0,L,5,1,true);g.translate(0,L/2,0);
+ g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()));g.translate(a.x,a.y,a.z);
+ const y0=Math.min(a.y,b.y),y1=Math.max(a.y,b.y)+.001;
+ return fin(tint(g,(t,x,y)=>{t.setHex(0x3a2a1c).lerp(new THREE.Color(0x6b5038),Math.min(1,Math.max(0,(y-y0)/(y1-y0))*.6+.1))}));
 }
-function fin(g){g.computeVertexNormals();g=g.toNonIndexed();g.deleteAttribute('uv');return g}
-function blob(r,seed,x,y,z,sy,lo,hi,y0,y1){
- let g=new THREE.IcosahedronGeometry(r,4);g.deleteAttribute('normal');g.deleteAttribute('uv');g=mergeVertices(g);
- const p=g.attributes.position;
- for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),
-  n=Math.sin(vx*2.3+seed)*Math.sin(vy*2.9+seed*1.7)*Math.sin(vz*2.5+seed*.6)*.5+Math.sin(vx*7+vy*6+seed)*Math.sin(vz*7-seed)*.18,k=1+n*.34;
-  p.setXYZ(i,vx*k,vy*k*sy,vz*k)}
- g.translate(x,y,z);return fin(paint(g,lo,hi,y0,y1,.16));
+const _tet=new THREE.TetrahedronGeometry(1,0);
+// barg zarrasi: tasodifiy buralgan va cho'zilgan tetraedr (4 uchburchak)
+function leaf(x,y,z,s,R,lo,hi,yMin,yMax){
+ const g=_tet.clone(),m=new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(R()*6.28,R()*6.28,R()*6.28)),new THREE.Vector3(s,s*(.55+R()*.35),s*(.8+R()*.4)));
+ g.applyMatrix4(m);g.deleteAttribute('uv');
+ const k=Math.min(1,Math.max(0,(y-yMin)/(yMax-yMin))),v=.82+R()*.36,c=new THREE.Color(lo).lerp(new THREE.Color(hi),k*.75+R()*.25).multiplyScalar(v);
+ const p=g.attributes.position,col=new Float32Array(p.count*3);
+ for(let i=0;i<p.count;i++){const sh=.8+.2*Math.min(1,Math.max(0,(p.getY(i)-y)/s+.5));col[i*3]=c.r*sh;col[i*3+1]=c.g*sh;col[i*3+2]=c.b*sh}
+ g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();return g;
 }
-function limb(x0,y0,z0,x1,y1,z1,r){
- const d=new THREE.Vector3(x1-x0,y1-y0,z1-z0),L=d.length();let g=new THREE.CylinderGeometry(r*.55,r,L,6);g.translate(0,L/2,0);
- g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()));g.translate(x0,y0,z0);
- return fin(paint(g,0x2e2118,0x5a4330,y0,y1,.1));
-}
-function trunk(h,rt,rb,seed){
- const g=new THREE.CylinderGeometry(rt,rb,h,9,6);g.translate(0,h/2,0);const p=g.attributes.position;
- for(let i=0;i<p.count;i++){const y=p.getY(i),x=p.getX(i),z=p.getZ(i),fl=1+.7*Math.pow(Math.max(0,1-y/(h*.28)),2),w=1+.08*Math.sin(Math.atan2(z,x)*5+seed);
-  p.setXYZ(i,x*fl*w+Math.sin(y*.9+seed)*.07*y,y,z*fl*w)}
- return fin(paint(g,0x2a1f16,0x5b4532,0,h,.14));
-}
-const BROAD=[[0x1f4d24,0x5ba13c],[0x265a22,0x6bb043],[0x2d5a1c,0x86a83a],[0x1b4a2c,0x4f9a46]];
-function broad(i){
- const R=rng(101+i*37),h=2.3+R()*.9,[lo,hi]=BROAD[i%BROAD.length],cy=h+1.35,parts=[],tp=[trunk(h,.15,.32,i)];
- parts.push(blob(1.75,i*3.1,0,cy,0,.9,lo,hi,h-.3,h+3.3));
- const n=6+(R()*3|0);
- for(let k=0;k<n;k++){const a=R()*6.283,rr=.8+R()*.8,y=h+.2+R()*2.3,x=Math.cos(a)*rr,z=Math.sin(a)*rr,r=.85+R()*.65;
-  parts.push(blob(r,k*5.3+i,x,y,z,.85,lo,hi,h-.3,h+3.3));if(k<3)tp.push(limb(0,h*.8,0,x*.6,y-.4,z*.6,.09))}
- return{leaf:mergeGeometries(parts),trunk:mergeGeometries(tp)};
+function makeVariant(i){
+ const R=rng(101+i*37),h=2.2+R()*.9,[lo,hi]=LEAF_PAL[i%LEAF_PAL.length],V=THREE.Vector3,wood=[],tips=[];
+ // tana: 3 bo'lak, ozgina egilgan, tagida kengaygan
+ const lean=(R()-.5)*.5,pts=[new V(0,0,0),new V(lean*.35,h*.4,lean*.2),new V(lean*.7,h*.75,-lean*.3),new V(lean,h,lean*.1)],rad=[.34,.24,.17,.1];
+ for(let k=0;k<3;k++)wood.push(limb(pts[k],pts[k+1],rad[k],rad[k+1]));
+ // 5-6 ta asosiy shox (tananing yuqori yarmidan), har birida 1-2 ta novda
+ const nb=5+(R()*2|0),top=pts[3];
+ for(let k=0;k<nb;k++){
+  const a=k/nb*6.283+R()*.8,f=.5+R()*.5,from=new V().copy(pts[2]).lerp(pts[3],f),len=1.1+R()*.8,up=.55+R()*.5;
+  const to=new V(from.x+Math.cos(a)*len,from.y+up*len*.9,from.z+Math.sin(a)*len);
+  wood.push(limb(from,to,.09,.04));tips.push(to);
+  for(let q=0;q<1+(R()*2|0);q++){const a2=a+(R()-.5)*1.6,l2=.5+R()*.5,m=new V().copy(from).lerp(to,.55+R()*.3),t2=new V(m.x+Math.cos(a2)*l2,m.y+.35+R()*.4,m.z+Math.sin(a2)*l2);
+   wood.push(limb(m,t2,.045,.02));tips.push(t2)}
+ }
+ tips.push(new V(top.x,top.y+1.1,top.z),new V(top.x,top.y+.4,top.z));
+ // barg zarralari: shox uchlari atrofida bulut ko'rinishida
+ const yMin=h*.8,yMax=h+2.9,leaves=[];
+ for(let n=0;n<NPART;n++){
+  const tp=tips[n%tips.length],a=R()*6.283,b=Math.acos(2*R()-1),r=.25+R()*.85,s=.3+R()*.3;
+  leaves.push(leaf(tp.x+Math.sin(b)*Math.cos(a)*r,tp.y+.15+Math.cos(b)*r*.7,tp.z+Math.sin(b)*Math.sin(a)*r,s,R,lo,hi,yMin,yMax));
+ }
+ return mergeGeometries([...wood,...leaves]);
 }
 let TV=null;
-export function treeParts(){if(!TV)TV={b:[0,1,2,3].map(broad)};return TV}
-const LEAFM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.92}),BARKM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1});
+const TMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95,metalness:0});
+const TREG=new WeakMap();
+export function treeParts(){if(!TV)TV=[0,1,2,3].map(makeVariant);return TV}
+// daraxtlar ro'yxatga olinadi va bir marta (mikrotask) katakchalar bo'yicha InstancedMesh ga yig'iladi
+function flushTrees(parent,q){
+ const V=treeParts(),cells=new Map();
+ for(const t of q){const key=t.v+'|'+Math.floor(t.x/CELL)+'|'+Math.floor(t.z/CELL);let a=cells.get(key);if(!a)cells.set(key,a=[]);a.push(t)}
+ const o=new THREE.Object3D(),col=new THREE.Color();
+ for(const [key,a] of cells){
+  const m=new THREE.InstancedMesh(V[+key.split('|')[0]],TMAT,a.length);
+  a.forEach((t,i)=>{o.position.set(t.x,0,t.z);o.rotation.set(t.rx,t.ry,t.rz);o.scale.set(t.sx,t.sy,t.sx);o.updateMatrix();m.setMatrixAt(i,o.matrix);
+   const k=.88+Math.random()*.24;m.setColorAt(i,col.setRGB(k,k*(.96+Math.random()*.08),k*.96))});
+  m.castShadow=true;m.receiveShadow=false;m.instanceMatrix.needsUpdate=true;m.computeBoundingSphere();parent.add(m);
+ }
+}
 export const makeTree=K=>(x,z)=>{
- const v=treeParts(),a=v.b,vv=a[Math.floor(Math.random()*a.length)],s=.85+Math.random()*.4,g=new THREE.Group(),
-  l=new THREE.Mesh(vv.leaf,LEAFM),t=new THREE.Mesh(vv.trunk,BARKM);
- l.castShadow=t.castShadow=true;l.receiveShadow=t.receiveShadow=true;g.add(t,l);
- g.position.set(x,0,z);g.rotation.set((Math.random()-.5)*.05,Math.random()*6.283,(Math.random()-.5)*.05);
- g.scale.set(s*(.9+Math.random()*.2),s*(.92+Math.random()*.22),s*(.9+Math.random()*.2));K.scene.add(g);return g;
+ let r=TREG.get(K.scene);if(!r)TREG.set(K.scene,r={q:[],p:false});
+ const s=.85+Math.random()*.4;
+ r.q.push({v:Math.floor(Math.random()*4),x,z,rx:(Math.random()-.5)*.05,ry:Math.random()*6.283,rz:(Math.random()-.5)*.05,sx:s*(.9+Math.random()*.2),sy:s*(.92+Math.random()*.22)});
+ if(!r.p){r.p=true;Promise.resolve().then(()=>{const q=r.q;r.q=[];r.p=false;flushTrees(K.scene,q)})}
 };
 
 export function buildHouse(K,hx,hz,secret){
@@ -107,7 +130,6 @@ export function buildHouse(K,hx,hz,secret){
   bx(g,1.1,.5,.7,WOOD,hx,.25,sz+.9);bx(g,1.1,.14,.7,GOLD,hx,.57,sz+.9);bx(g,1.2,.05,1.2,M(0x6e5b3a),hx+3,.07,hz-3,false);o.pm=pm;o.ps=ps}
  houses.push(o);return o;
 }
-
 export function buildBank(K,x,z){
  const {scene,solids,slab}=K,g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
  const sol=(dx,dz,hx,hz,top)=>solids.push({x:x+dx,z:z+dz,hx,hz,top,y0:0});
@@ -134,7 +156,6 @@ export function buildBank(K,x,z){
  for(const zz of[-2.4,0,2.4])for(const s of[-1,1]){bx(g,.08,2.9,1.5,STONE2,s*4.52,3,zz);bx(g,.1,2.6,1.2,GLASSD,s*4.55,3,zz,false)}
  for(const xx of[-2.4,0,2.4]){bx(g,1.5,2.9,.08,STONE2,xx,3,-4.52);bx(g,1.2,2.6,.1,GLASSD,xx,3,-4.55,false)}
 }
-
 /* ---------- BAR: ichiga kiriladigan klub. Raqs maydoni, DJ, disko shar, 3 ta raqqosa qiz, o'tirish joylari ---------- */
 const GIRLS=[[1,'Sevinch',-1.9,-1.9,.3],[3,'Zilola',1.9,-1.9,-.3],[5,'Madina',0,-.7,0]],
  LINES=['Raqsga tushamiz!','Musiqa juda zo‘r!','Bizga qo‘shiling!','Bugun kecha bizniki!','Ana shunday, davom eting!','Raqs tugmasini bosing!'];
@@ -224,7 +245,6 @@ export function buildBar(K,x,z){
  K.bars.push(bar);if(K.onBar)K.onBar(bar);
  return bar;
 }
-
 export function buildPark(K,x,z){
  const {scene,solids,flat,spots}=K,t=makeTree(K),g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
  flat(14,14,0x4aa05a,x,z,.04);flat(2,14,0xcfc7b0,x,z,.045);flat(14,2,0xcfc7b0,x,z,.046);

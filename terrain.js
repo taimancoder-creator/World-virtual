@@ -5,14 +5,12 @@ const sm=t=>t*t*(3-2*t),cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 function vn(x,z){const xi=Math.floor(x),zi=Math.floor(z),xf=sm(x-xi),zf=sm(z-zi),a=hash(xi,zi),b=hash(xi+1,zi),c=hash(xi,zi+1),d=hash(xi+1,zi+1);return a+(b-a)*xf+(c-a)*zf+(a-b-c+d)*xf*zf}
 function fbm(x,z,o=4){let s=0,a=.5,f=1;for(let i=0;i<o;i++){s+=a*vn(x*f,z*f);f*=2.03;a*=.5}return s}
 function ridge(x,z,o=5){let s=0,a=.5,f=1,w=1;for(let i=0;i<o;i++){let n=1-Math.abs(vn(x*f,z*f)*2-1);n*=n*w;w=cl(n*2);s+=n*a;f*=2.1;a*=.5}return s}
-
 const B=97,SPAN=215,NA=240,NR=64;
 const edge=t=>B/Math.max(Math.abs(Math.cos(t)),Math.abs(Math.sin(t)))+5;
 function hgt(x,z,u){
  const rise=sm(cl(u/.5)),peak=12+88*ridge(x*.011+3.1,z*.011+7.7),far=sm(cl(u*1.6));
  return rise*peak*(.5+.5*far)+fbm(x*.045,z*.045)*7*sm(cl(u*5))+fbm(x*.19,z*.19,3)*1.6*rise+.03;
 }
-
 export function groundMat(){
  const cn=document.createElement('canvas');cn.width=cn.height=256;const g=cn.getContext('2d');
  g.fillStyle='#4d7a3f';g.fillRect(0,0,256,256);
@@ -20,7 +18,6 @@ export function groundMat(){
  const t=new THREE.CanvasTexture(cn);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(150,150);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;
  return new THREE.MeshStandardMaterial({map:t,roughness:1});
 }
-
 export function buildTerrain(scene){
  const pos=new Float32Array(NA*(NR+1)*3),col=new Float32Array(pos.length),idx=[];let k=0;
  for(let i=0;i<=NR;i++){const u=Math.pow(i/NR,1.4);for(let j=0;j<NA;j++){const t=j/NA*Math.PI*2,r=edge(t)+u*SPAN,x=Math.cos(t)*r,z=Math.sin(t)*r;pos[k++]=x;pos[k++]=hgt(x,z,u);pos[k++]=z}}
@@ -39,7 +36,6 @@ export function buildTerrain(scene){
  const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));
  scene.add(terrain);
 }
-
 export function buildSky(scene){
  const g=new THREE.SphereGeometry(460,24,16),p=g.attributes.position,out=[],top=new THREE.Color(0x4a82c4),hor=new THREE.Color(0xbcd3e0),c=new THREE.Color();
  for(let i=0;i<p.count;i++){const y=Math.max(0,p.getY(i)/460);c.copy(hor).lerp(top,Math.pow(y,.55));out.push(c.r,c.g,c.b)}

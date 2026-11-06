@@ -10,7 +10,6 @@ body{position:fixed;inset:0;height:100dvh;background:#0a111c;color:var(--tx);fon
 canvas{display:block;touch-action:none}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
 svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-
 /* ---------- kirish oynasi ---------- */
 #intro{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;padding:calc(18px + var(--st)) calc(18px + var(--sr)) calc(18px + var(--sb)) calc(18px + var(--sl));text-align:center;overflow-y:auto;touch-action:pan-y;background:linear-gradient(#050a14b8,#050a14ee),url(fon.png) center/cover no-repeat,#080d16}
 #intro.loading{justify-content:flex-end;padding-bottom:calc(34px + var(--sb));background:linear-gradient(transparent 55%,#050a14e6),url(fon.png) center/cover no-repeat,#080d16}
@@ -37,7 +36,6 @@ svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-l
 #go:active{transform:scale(.97)}#go:disabled{opacity:.5}
 #msg{color:#ffb4a0;font-size:12px;min-height:16px;max-width:320px}
 @media(max-height:480px){#intro{padding-top:calc(8px + var(--st));padding-bottom:calc(8px + var(--sb))}#pick{gap:7px;max-width:min(720px,92vw)}#grid{grid-template-columns:repeat(6,1fr);gap:8px}.card{aspect-ratio:1/.78;border-radius:14px}.card span{padding:14px 6px 6px;font-size:13px}#intro h1{font-size:22px}#nick,#go{height:42px}}
-
 /* ---------- yuqori panel ---------- */
 #topbar{position:fixed;z-index:10;top:var(--row1);left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);height:var(--ib);display:flex;justify-content:space-between;align-items:center;pointer-events:none}
 #logo{pointer-events:auto;height:var(--ib);display:flex;align-items:center;padding:0 13px;border-radius:12px;background:var(--pn);border:1px solid var(--ln);box-shadow:var(--sh);font-size:12px;font-weight:800;letter-spacing:2.2px;color:var(--cy)}
@@ -52,7 +50,6 @@ svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-l
 .ib.open{border-color:var(--cy);color:var(--cy)}
 #mute .s2{display:none}#mute.m .s1{display:none}#mute.m .s2{display:block}#mute.m{color:#ff9b6b}
 @media(max-width:360px){#chip .tx{display:none}}
-
 #radio{position:fixed;z-index:10;top:var(--row2);left:calc(var(--sl) + 12px);max-width:calc(50vw - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;padding:5px 11px;border-radius:10px;background:var(--pn);border:1px solid var(--ln);box-shadow:var(--sh);font-size:10.5px;font-weight:600;color:var(--mt);transition:border-color .2s,color .2s}
 #radio.act{color:#fff;border-color:#4be39a;box-shadow:0 0 16px #4be39a66}
 #hud{position:fixed;z-index:10;top:var(--row2);right:calc(var(--sr) + 12px);max-width:50vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;padding:5px 11px;border-radius:10px;background:var(--pn);border:1px solid rgba(255,211,106,.35);box-shadow:var(--sh);font-size:11px;font-weight:700;line-height:1.4;text-align:right;color:var(--gd)}
@@ -61,7 +58,6 @@ svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-l
 #log div{background:rgba(10,22,32,.78);border-radius:9px;padding:4px 9px;overflow-wrap:anywhere;border:1px solid rgba(255,255,255,.1);color:#b9c9da}
 #toast{position:fixed;z-index:55;top:calc(var(--row2) + 4px);left:50%;transform:translate(-50%,-12px);max-width:min(70vw,420px);padding:8px 16px;border-radius:12px;background:var(--pn);border:1px solid rgba(255,138,138,.7);box-shadow:var(--sh);font-size:12.5px;font-weight:600;text-align:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
-
 /* ---------- boshqaruv ---------- */
 #joystick{position:fixed;z-index:20;left:calc(var(--sl) + 18px);bottom:calc(var(--sb) + 22px);width:var(--js);height:var(--js);border-radius:50%;background:radial-gradient(circle,rgba(24,40,64,.55) 0 36%,rgba(20,34,56,.35) 64%,rgba(255,255,255,.05) 100%);border:1.5px solid rgba(255,255,255,.24);box-shadow:var(--sh);touch-action:none}
 #joystick.run{border-color:#ffb347;box-shadow:0 0 20px #ffb34766}
@@ -81,7 +77,6 @@ svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-l
 #hp u{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff5d6c,#ff9a6b);transition:width .2s}
 body.chatting #joystick,body.chatting #actions{opacity:0;pointer-events:none}
 body.modal #joystick,body.modal #actions{opacity:.3;pointer-events:none}
-
 /* ---------- chat ---------- */
 #chatPanel{position:fixed;z-index:30;bottom:calc(var(--sb) + 14px);left:50%;transform:translate(-50%,20px);width:min(520px,calc(100% - 24px - var(--sl) - var(--sr)));display:flex;gap:8px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 #chatPanel.open{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
@@ -91,7 +86,6 @@ body.modal #joystick,body.modal #actions{opacity:.3;pointer-events:none}
 .bubble{position:fixed;left:0;top:0;will-change:transform;display:none;min-width:80px;max-width:210px;padding:8px 12px;border-radius:12px;background:#111c2eee;border:1px solid var(--cy);font-size:13px;transform:translate(-50%,-100%);z-index:25;pointer-events:none;overflow-wrap:anywhere}
 .bubble b{display:block;color:var(--cy);font-size:9px;margin-bottom:3px}
 .bubble.o{border-color:var(--pk)}.bubble.o b{color:var(--pk)}
-
 /* ---------- panellar ---------- */
 #shop,#fight{position:fixed;z-index:40;top:calc(var(--row2) + 40px);right:calc(var(--sr) + 12px);display:none;flex-direction:column;gap:7px;width:min(250px,calc(100vw - 24px - var(--sl) - var(--sr)));max-height:calc(100dvh - var(--row2) - 56px - var(--sb));overflow-y:auto;overscroll-behavior:contain;padding:12px;border-radius:16px;background:var(--pn);border:1px solid var(--ln);box-shadow:0 14px 36px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12);touch-action:pan-y;font-size:12px}
 #shop.open,#fight.open{display:flex}
@@ -104,7 +98,6 @@ body.modal #joystick,body.modal #actions{opacity:.3;pointer-events:none}
 #fight button:nth-of-type(5){background:linear-gradient(165deg,#ff7fd9,#c03a9a);border-color:#ffc4ee}
 @media(hover:hover){#shop button:hover,#fight button:hover{border-color:rgba(53,225,255,.55)}}
 #shop button:active,#fight button:active{transform:scale(.98);filter:brightness(1.2)}
-
 /* ---------- oyna (tasdiqlash / savol) ---------- */
 #modal{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,16,.55)}
 #modal.open{display:flex}
@@ -114,13 +107,11 @@ body.modal #joystick,body.modal #actions{opacity:.3;pointer-events:none}
 .mb{display:flex;gap:10px}.mb button{flex:1;height:46px;border-radius:12px;font-weight:700;font-size:14px}
 .my{background:linear-gradient(165deg,#5aeaff,#17a3e0);color:#02202e}
 .mn{background:rgba(255,255,255,.1);border:1px solid var(--ln)}
-
 /* ---------- yashirin terminal ---------- */
 #term{position:fixed;z-index:60;left:calc(var(--sl) + 3%);right:calc(var(--sr) + 3%);top:calc(var(--row2) + 40px);height:min(40dvh,260px);display:none;flex-direction:column;background:#020a06f2;border:1px solid #5be7a9;border-radius:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;box-shadow:0 0 30px #5be7a955}
 #tout{flex:1;overflow:hidden;padding:10px;color:#9be7c0}
 #trow{display:flex;gap:6px;padding:8px 10px;border-top:1px solid #5be7a944;color:#5be7a9}
 #tin{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#fff;font:inherit;font-size:16px;-webkit-user-select:text;user-select:text;-webkit-text-security:disc}
-
 /* ---------- gorizontal (past ekran) ---------- */
 @media(max-height:480px){
  :root{--ib:32px;--bt:clamp(42px,15vh,54px);--js:clamp(86px,32vh,108px)}
@@ -131,17 +122,14 @@ body.modal #joystick,body.modal #actions{opacity:.3;pointer-events:none}
  #shop,#fight{top:calc(var(--row2) + 6px);width:min(240px,40vw)}
  #hp{bottom:calc(var(--sb) + 10px)}
 }
-
 /* ---------- bot ustidagi "-bal" yozuvi (gap pufagidan alohida joyda) ---------- */
 #pops{position:fixed;inset:0;z-index:26;pointer-events:none;overflow:hidden}
 .pop{position:absolute;left:0;top:0;will-change:transform,opacity;white-space:nowrap;font-weight:800;font-size:15px;color:#ff8a8a;text-shadow:0 1px 3px #000,0 0 8px #000}
-
 /* ---------- kontekst tugma: o'tirish / yotish / raqs ---------- */
 .ctx{position:fixed;z-index:21;right:calc(var(--sr) + 16px);bottom:calc(var(--sb) + 22px + var(--bt)*2 + 22px);display:none;align-items:center;justify-content:center;min-width:104px;height:42px;padding:0 18px;border-radius:21px;background:linear-gradient(165deg,#ff7fd9,#c03a9a);border:1.5px solid #ffc4ee;box-shadow:var(--sh);color:#fff;font-weight:800;font-size:13px;letter-spacing:.8px;animation:ctxp 1.4s infinite}
 .ctx.show{display:flex}
 body.chatting .ctx,body.modal .ctx{display:none}
 @keyframes ctxp{0%{box-shadow:0 0 0 0 #ff62d599,var(--sh)}100%{box-shadow:0 0 0 14px #ff62d500,var(--sh)}}
-
 /* ---------- gorizontal holat eslatmasi ---------- */
 #rot{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,16,.82)}
 #rot.open{display:flex}
@@ -154,23 +142,21 @@ body.chatting .ctx,body.modal .ctx{display:none}
 @keyframes rotph{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 @media(max-height:480px){.ctx{bottom:calc(var(--sb) + 10px + var(--bt)*2 + 16px)}.rbox{flex-direction:row;flex-wrap:wrap;justify-content:center}.ph{margin:4px 10px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-
-/* ---------- SALTO tugmalari: FRONT va SIDE (SAKRA tugmasining chap tomonida) ---------- */
-#flipBtn{position:fixed;z-index:20;right:calc(var(--sr) + 16px + var(--bt)*2 + 22px);bottom:calc(var(--sb) + 22px);background:linear-gradient(165deg,#ff7fd9,#a53ad6);border-color:#ffd0f3;color:#fff}
-@media(max-height:480px){#flipBtn{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px)}}
-body.chatting #flipBtn{opacity:0;pointer-events:none}
-body.modal #flipBtn{opacity:.3;pointer-events:none}
-#sideBtn{position:fixed;z-index:20;right:calc(var(--sr) + 16px + var(--bt)*3 + 32px);bottom:calc(var(--sb) + 22px);background:linear-gradient(165deg,#ffb86b,#e0562a);border-color:#ffe1c0;color:#fff}
-@media(max-height:480px){#sideBtn{right:calc(var(--sr) + 16px + var(--bt)*3 + 26px);bottom:calc(var(--sb) + 10px)}}
-body.chatting #sideBtn{opacity:0;pointer-events:none}
-body.modal #sideBtn{opacity:.3;pointer-events:none}
-
-/* ---------- qo'shimcha SALTO tugmalari (2-qator): BACK, T-BACK, T-FRONT — FRONT/SIDE tugmalarining tepasida ---------- */
-.flipx{position:fixed;z-index:20;bottom:calc(var(--sb) + 22px + var(--bt) + 10px);color:#fff}
-.flipx span{font-size:clamp(7px,1.8vmin,9px);letter-spacing:.3px}
-#backBtn{right:calc(var(--sr) + 16px + var(--bt)*2 + 22px);background:linear-gradient(165deg,#6bffb0,#10a85c);border-color:#c8ffe2;color:#032a14}
-#twBBtn{right:calc(var(--sr) + 16px + var(--bt)*3 + 32px);background:linear-gradient(165deg,#ffe36b,#e09a10);border-color:#fff1c0;color:#2a1700}
-#twFBtn{right:calc(var(--sr) + 16px + var(--bt)*4 + 42px);background:linear-gradient(165deg,#9b8bff,#5a3ad6);border-color:#d8d0ff}
-@media(max-height:480px){.flipx{bottom:calc(var(--sb) + 10px + var(--bt) + 6px)}#backBtn{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px)}#twBBtn{right:calc(var(--sr) + 16px + var(--bt)*3 + 26px)}#twFBtn{right:calc(var(--sr) + 16px + var(--bt)*4 + 34px)}}
-body.chatting .flipx{opacity:0;pointer-events:none}
-body.modal .flipx{opacity:.3;pointer-events:none}
+/* ---------- SALTO: bitta tugma, bosilganda 5 ta turi katak (grid) bo'lib ochiladi ---------- */
+:root{--fb:calc(var(--bt)*.8)}
+#flipMain{position:fixed;z-index:20;right:calc(var(--sr) + 16px + var(--bt)*2 + 22px);bottom:calc(var(--sb) + 22px);background:linear-gradient(165deg,#ff7fd9,#a53ad6);border-color:#ffd0f3;color:#fff}
+#flipMain.on{box-shadow:0 0 0 3px rgba(255,208,243,.55),var(--sh)}
+#flipPanel{position:fixed;z-index:21;right:calc(var(--sr) + 16px + var(--bt)*2 + 22px);bottom:calc(var(--sb) + 22px + var(--bt) + 8px);display:none;grid-template-columns:repeat(6,calc(var(--fb)/2));row-gap:6px;padding:6px 3px;border-radius:calc(var(--fb)*.5);background:rgba(10,17,28,.92);border:1px solid var(--ln);box-shadow:var(--sh)}
+#flipPanel.open{display:grid;animation:fpop .14s ease-out}
+@keyframes fpop{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:none}}
+#flipPanel .action{width:calc(var(--fb) - 6px);height:calc(var(--fb) - 6px);grid-column:span 2;justify-self:center;color:#fff}
+#flipPanel .action span{font-size:clamp(7px,1.7vmin,9px);letter-spacing:.2px}
+#twFBtn{grid-column:2/span 2!important}#twBBtn{grid-column:4/span 2!important}
+#flipBtn{background:linear-gradient(165deg,#ff7fd9,#a53ad6);border-color:#ffd0f3}
+#sideBtn{background:linear-gradient(165deg,#ffb86b,#e0562a);border-color:#ffe1c0}
+#backBtn{background:linear-gradient(165deg,#6bffb0,#10a85c);border-color:#c8ffe2;color:#032a14!important}
+#twBBtn{background:linear-gradient(165deg,#ffe36b,#e09a10);border-color:#fff1c0;color:#2a1700!important}
+#twFBtn{background:linear-gradient(165deg,#9b8bff,#5a3ad6);border-color:#d8d0ff}
+@media(max-height:480px){#flipMain{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px)}#flipPanel{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px + var(--bt) + 6px)}}
+body.chatting #flipMain,body.chatting #flipPanel{opacity:0;pointer-events:none}
+body.modal #flipMain,body.modal #flipPanel{opacity:.3;pointer-events:none}
