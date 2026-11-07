@@ -4,7 +4,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import {initWorld} from './world.js';
 import {initCombat} from './combat.js';
 import {initUI} from './ui.js';
-import {buildTerrain,buildSky,groundMat} from './terrain.js';import {initBoqiy,BQZ} from './boqiy.js';import {initCars} from './cars.js';import {initPolice} from './police.js';
+import {buildTerrain,buildSky,groundMat} from './terrain.js';import {initBoqiy,BQZ} from './boqiy.js';import {initCars} from './cars.js';import {initHeli} from './heli.js';import {initPolice} from './police.js';
 const $=id=>document.getElementById(id);
 // personajlar: rasm (img) va model (model) nomi bir xil. Yangi personaj qo'shish uchun shu ro'yxatga qator qo'shing
 const CHARS=[
@@ -22,12 +22,21 @@ const myInfo={name:'Taiman',g:0,id:Math.random().toString(36).slice(2,10)};
 const remotes=new Map(),joyDir=new THREE.Vector2(),keys={};
 let cameraAngle=0,cameraPitch=.2,camPointer=null,lastX=0,lastY=0,joystickPointer=null,stepT=0,camDist=3.8,camK=1;
 
-const MOB=matchMedia('(pointer:coarse)').matches||innerWidth<700||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent),PRmin=MOB?.85:1,SHM=MOB?768:1024;
+const MOB=matchMedia('(pointer:coarse)').matches||innerWidth<700||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent),GFX_KEY='taiman_gfx';
 // kadr chegarasi (ms): telefonda ~60 FPS dan oshirilmaydi (90/120 Hz ekranlarda qizishni keskin kamaytiradi). Kompyuterda cheklov yo'q.
 const MIN_DT=MOB?10:0,LOWF=MOB?38:50,HIFPS=MOB?54:57;   // MIN_DT=10: 90 Hz da 90, 120 Hz da 60 FPS (avval 14.5 edi: 90 Hz da 45 FPS bo'lib qotardi)
-let fpsN=0,fpsT=0,PRmax=MOB?1.3:1.5,PRcur=PRmax,fpsBad=0,fpsGood=0,PRcap=9,upAt=0,warmT=0,lastT=0,shF=0;
+// ---- GRAFIKA REJIMLARI: ULTRA / BALANCED / PERFORMANCE / AUTO ----
+// prMax/prMin: piksel zichligi chegarasi (avto-moslashuv shu oraliqda ishlaydi), shm: soya xaritasi, shEvery: soya har necha kadrda yangilanadi.
+const GP={ultra:{prMax:MOB?1.6:2,prMin:MOB?.85:1.1,shm:MOB?1024:2048,shEvery:1},
+ balanced:{prMax:MOB?1.3:1.5,prMin:MOB?.75:1,shm:MOB?768:1024,shEvery:MOB?2:1},
+ performance:{prMax:MOB?1.05:1.25,prMin:MOB?.65:.85,shm:MOB?512:1024,shEvery:MOB?3:2}};
+let gfxPref='auto';try{gfxPref=localStorage.getItem(GFX_KEY)||'auto'}catch(e){}
+if(gfxPref!=='auto'&&!GP[gfxPref])gfxPref='auto';
+let gfxMode=gfxPref==='auto'?'balanced':gfxPref,PRmin=GP[gfxMode].prMin,SHM=GP[gfxMode].shm,SHE=GP[gfxMode].shEvery;
+let fpsN=0,fpsT=0,PRmax=GP[gfxMode].prMax,PRcur=PRmax,fpsBad=0,fpsGood=0,PRcap=9,upAt=0,warmT=0,lastT=0,shF=0;
 const applyPR=()=>renderer.setPixelRatio(Math.min(devicePixelRatio,PRcur));
-const _SL=new THREE.Vector3(30,60,20),_SR=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),_SL).normalize(),_SU=new THREE.Vector3().crossVectors(_SL,_SR).normalize(),_ST=32/(MOB?768:1024),_bp=new THREE.Vector3();
+const _SL=new THREE.Vector3(30,60,20),_SR=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),_SL).normalize(),_SU=new THREE.Vector3().crossVectors(_SL,_SR).normalize(),_bp=new THREE.Vector3();
+let _ST=32/SHM;
 const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sp=new THREE.Sphere(new THREE.Vector3(),3.2);
 const _vs=new THREE.Sphere(new THREE.Vector3(),1),inView=(x,y,z,r)=>{_vs.center.set(x,y,z);_vs.radius=r;return _fr.intersectsSphere(_vs)};
 const shortest=a=>Math.atan2(Math.sin(a),Math.cos(a));
@@ -137,6 +146,54 @@ function updHud(){const b=topPlayer(),h='<span>BAL</span> '+P.score+' <span>·</
 function saveP(){try{const s=JSON.stringify({score:P.score,money:P.inf?(+SV.money||0):P.money,rank:P.hacker?'':P.rank});if(s===saveP.l)return;saveP.l=s;localStorage.setItem('tg_p',s)}catch(e){}}
 const T={open:false};
 function tprint(t,c){const d=document.createElement('div');d.textContent=t;if(c)d.style.color=c;const o=$('tout');o.appendChild(d);while(o.children.length>5)o.firstChild.remove()}
+// ===== GRAFIKA: qurilmani aniqlash va rejimni qo'llash =====
+function gfxDetect(){
+ if(gfxPref!=='auto')return gfxPref;
+ let r='';try{const gl=renderer.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info');r=(e?String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)):'').toLowerCase()}catch(e){}
+ const mem=navigator.deviceMemory||4,cores=navigator.hardwareConcurrency||4;
+ if(/swiftshader|llvmpipe|software/.test(r))return 'performance';
+ if(!MOB)return(/nvidia|geforce|rtx|gtx|radeon rx|radeon pro|apple m\d|apple gpu|arc\b/.test(r)&&!/hd graphics|uhd graphics/.test(r))?'ultra':'balanced';
+ return(/adreno.{0,8}[3-6]\d\d\b|mali-(t|g[1-5]\d?\b)|powervr/.test(r)||mem<=3||cores<=4)?'performance':'balanced';
+}
+function gfxApply(m,reset){
+ const g=GP[m];gfxMode=m;PRmin=g.prMin;PRmax=g.prMax;SHE=g.shEvery;PRcur=reset?PRmax:Math.min(PRmax,Math.max(PRmin,PRcur));PRcap=9;upAt=0;
+ if(g.shm!==SHM){SHM=g.shm;_ST=32/SHM;if(sun){sun.shadow.mapSize.set(SHM,SHM);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}}
+ renderer.shadowMap.autoUpdate=SHE===1;renderer.shadowMap.needsUpdate=true;if(sun)sun.castShadow=true;applyPR();
+}
+function setGfxPref(p){
+ if(p!=='auto'&&!GP[p])return;
+ gfxPref=p;try{localStorage.setItem(GFX_KEY,p)}catch(e){}
+ const m=p==='auto'?gfxDetect():p,rebuild=!window.GFX||window.GFX.mode!==m;
+ gfxApply(m,true);
+ if(rebuild){toast('Grafika: '+m.toUpperCase()+' — shahar sifati uchun qayta yuklanmoqda…');setTimeout(()=>location.reload(),1400)}
+ else toast('Grafika: '+m.toUpperCase()+(p==='auto'?' (avto)':''));
+}
+// ===== DEBUG panel: FPS, kadr vaqti, draw call, uchburchak, geometriya, tekstura (terminal: debug | logotipni 5 marta bosing | ?debug) =====
+const DBG={on:false,el:null,txt:null,btns:null,fr:0,acc:0,worst:0,upd:0,rnd:0};
+function dbgBuild(){
+ const d=document.createElement('div');d.id='dbg';
+ d.style.cssText='position:fixed;left:8px;top:calc(env(safe-area-inset-top,0px) + 56px);z-index:70;display:none;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#d8f6ff;background:rgba(8,12,18,.66);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:7px 9px;min-width:170px';
+ d.addEventListener('pointerdown',e=>e.stopPropagation());
+ const t=document.createElement('div');t.style.whiteSpace='pre';d.appendChild(t);
+ const r=document.createElement('div');r.style.cssText='display:flex;gap:4px;margin-top:6px;flex-wrap:wrap';
+ [['ULTRA','ultra'],['BALANCED','balanced'],['PERF','performance'],['AUTO','auto']].forEach(([l,v])=>{const b=document.createElement('button');b.textContent=l;b.dataset.v=v;b.style.cssText='font:inherit;font-size:10px;padding:4px 7px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff';b.addEventListener('click',e=>{e.stopPropagation();setGfxPref(v)});r.appendChild(b)});
+ d.appendChild(r);document.body.appendChild(d);DBG.el=d;DBG.txt=t;DBG.btns=r;
+}
+function dbgToggle(o){if(!DBG.el)dbgBuild();DBG.on=o===undefined?!DBG.on:o;DBG.el.style.display=DBG.on?'block':'none';DBG.fr=0;DBG.acc=0;DBG.worst=0;DBG.upd=0;DBG.rnd=0}
+function dbgTick(raw,upd,rnd){
+ DBG.fr++;DBG.acc+=raw;DBG.upd+=upd;DBG.rnd+=rnd;if(raw>DBG.worst)DBG.worst=raw;
+ if(DBG.acc<.5)return;
+ const i=renderer.info,n=DBG.fr;
+ DBG.txt.textContent='FPS '+(n/DBG.acc).toFixed(0)+'  ('+(DBG.acc/n*1000).toFixed(1)+' ms, eng yomon '+(DBG.worst*1000).toFixed(0)+' ms)\n'
+  +'CPU update '+(DBG.upd/n).toFixed(1)+' ms · render '+(DBG.rnd/n).toFixed(1)+' ms\n'
+  +'Draw calls '+i.render.calls+'   Uchburchak '+(i.render.triangles/1000).toFixed(1)+'k\n'
+  +'Geometriya '+i.memory.geometries+'   Tekstura '+i.memory.textures+'   Shader '+(i.programs?i.programs.length:0)+'\n'
+  +'Rejim '+gfxMode.toUpperCase()+(gfxPref==='auto'?' (avto)':'')+'   PR '+Math.min(devicePixelRatio,PRcur).toFixed(2)+'\n'
+  +'Soya '+(sun&&sun.castShadow?SHM+'px, har '+SHE+'-kadr':'o‘chiq')+'   '+renderer.domElement.width+'×'+renderer.domElement.height;
+ [...DBG.btns.children].forEach(b=>{b.style.background=b.dataset.v===gfxPref?'rgba(0,200,255,.38)':'rgba(255,255,255,.08)'});
+ DBG.fr=0;DBG.acc=0;DBG.worst=0;DBG.upd=0;DBG.rnd=0;
+}
+if(/[?&]debug(=|&|$)/.test(location.search))dbgToggle(true);
 function termToggle(o){T.open=o===undefined?!T.open:o;$('term').style.display=T.open?'flex':'none';$('tout').innerHTML='';$('tin').value='';if(T.open)setTimeout(()=>$('tin').focus(),50);else $('tin').blur()}
 function termRun(l){
  const a=l.trim().split(/\s+/),c=(a[0]||'').toLowerCase(),A=a.slice(1),n=parseFloat(A[0]),ok=()=>tprint('OK','#5be7a9'),no=()=>tprint('ERR','#ff8080');
@@ -145,7 +202,7 @@ function termRun(l){
  const cmd=(c==='inf'&&(A[0]||'').toLowerCase()==='money')?'infmoney':c;
  switch(cmd){
   case 'infmoney':P.inf=!P.inf;ok();break;
-  case 'godmode':P.god=!P.god;ok();break;case 'boqiy':if(me){me.root.position.set(0,0,BQZ+20);me.vy=0;ok()}else no();break;
+  case 'debug':case 'fps':dbgToggle();ok();break;case 'gfx':{const m=(A[0]||'').toLowerCase();if(m==='auto'||GP[m]){setGfxPref(m);ok()}else tprint('gfx ultra|balanced|performance|auto','#ffd27a')}break;case 'godmode':P.god=!P.god;ok();break;case 'boqiy':if(me){me.root.position.set(0,0,BQZ+20);me.vy=0;ok()}else no();break;
   case 'taimanhacker':if(cyrb53(A.join(' '))===OWNER){P.hacker=true;P.rank='TAIMANHACKER';if(me)me.setRank(P.rank);ok()}else no();break;
   case 'score':case 'money':if(!P.hacker||!isFinite(n)){no();break}if(c==='score')P.score=Math.max(0,Math.round(n));else P.money=Math.max(0,n);ok();break;
   default:no()}
@@ -164,21 +221,21 @@ function buildWorld(){
  const gr=put(new THREE.Mesh(new THREE.PlaneGeometry(700,700),groundMat()),0,0,0,false);gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;
  buildTerrain(scene);buildSky(scene);
 }
-let W=null,CB=null,BQ=null,CR=null,PL=null;
+let W=null,CB=null,BQ=null,CR=null,PL=null,HE=null;
 function updateWorld(dt){
- if(W)W.update(dt);if(CB)CB.update(dt);if(BQ)BQ.update(dt);if(CR)CR.update(dt);if(PL)PL.update(dt);
+ if(W)W.update(dt);if(CB)CB.update(dt);if(BQ)BQ.update(dt);if(CR)CR.update(dt);if(HE)HE.update(dt);if(PL)PL.update(dt);
  // === bu yerga sahna animatsiyalari (kun/tun, aylanuvchi obyektlar...) qo'shiladi ===
  if(me){const t=me.root.position,a=t.x*_SR.x+t.z*_SR.z,b=t.x*_SU.x+t.z*_SU.z,da=a-Math.round(a/_ST)*_ST,db=b-Math.round(b/_ST)*_ST,
   tx=t.x-da*_SR.x-db*_SU.x,ty=-da*_SR.y-db*_SU.y,tz=t.z-da*_SR.z-db*_SU.z;
   sun.target.position.set(tx,ty,tz);sun.position.set(tx+30,ty+60,tz+20)}
 }
-function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=MOB?1.3:(w?1.25:1.5);PRcur=Math.min(PRcur,PRmax);applyPR()}}
+function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=GP[gfxMode].prMax;PRcur=Math.min(PRcur,PRmax);applyPR()}}
 function init(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0xbcd3e0);scene.fog=new THREE.Fog(0xbcd3e0,60,330);
  camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.3,500);
- renderer=new THREE.WebGLRenderer({antialias:!MOB,powerPreference:MOB?'default':'high-performance',stencil:false});
- renderer.setSize(innerWidth,innerHeight);applyPR();
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=!MOB;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
+ renderer=new THREE.WebGLRenderer({antialias:!MOB||gfxPref==='ultra',powerPreference:MOB?'default':'high-performance',stencil:false});
+ renderer.setSize(innerWidth,innerHeight);gfxApply(gfxDetect(),true);window.GFX={mode:gfxMode,mobile:MOB};   // roads.js shu rejimga qarab quriladi
+ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=SHE===1;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
  document.body.appendChild(renderer.domElement);
  clock=new THREE.Clock();
  scene.add(new THREE.HemisphereLight(0xffffff,0x526174,1.4));
@@ -189,6 +246,7 @@ function init(){
  PL=initPolice({toast,tone,addScore,addMoney,body,P,far:BQZ,me:()=>me,loadModel:spawnModel});
  try{BQ=initBoqiy({scene,solids,toast,tone,addScore,addMoney,me:()=>me})}catch(e){console.error('Boqiy Shahar yuklanmadi',e)}
  try{CR=initCars({scene,solids,toast,tone,netSend,remotes,me:()=>me})}catch(e){console.error('Mashina yuklanmadi',e)}
+ try{HE=initHeli({scene,solids,toast,tone,me:()=>me,renderer,camera})}catch(e){console.error('Vertolyot yuklanmadi',e)}
  camera.position.set(0,3,-6);
  fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;syncFL()};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250));document.addEventListener('fullscreenchange',()=>setTimeout(rs,200))}
 }
@@ -532,8 +590,10 @@ function standUp(){
 }
 function ctxPress(){
  if(!me||!started||me.lock>0||me.flipT>=0)return;initAudio();
+ if(HE&&HE.flying){HE.exit();return}
  if(CR&&CR.driving){CR.exit();return}
  if(me.pose){standUp();return}
+ if(HE&&me.grounded&&HE.canEnter()){HE.enter();return}
  if(CR&&me.grounded&&CR.canEnter()){CR.enter();return}
  const s=nearestSpot();if(!s||!me.grounded)return;
  if(s.t==='dance'){me.setPose(3);dAt={x:me.root.position.x,z:me.root.position.z};return}
@@ -550,7 +610,7 @@ function seatTick(dt,len){
 function updCtx(){
  let t='';
  if(started&&me&&me.lock<=0&&!document.body.classList.contains('modal')){
-  if(CR&&CR.driving)t='MASHINADAN CHIQISH';else if(CR&&!me.pose&&me.grounded&&me.speed<3&&CR.canEnter())t='MASHINAGA O‘TIRISH';else if(me.pose)t=me.pose===3?'RAQSNI TO‘XTATISH':'TURISH';
+  if(HE&&HE.flying)t='VERTOLYOTDAN CHIQISH';else if(HE&&!me.pose&&me.grounded&&me.speed<3&&HE.canEnter())t='VERTOLYOTGA O‘TIRISH';else if(CR&&CR.driving)t='MASHINADAN CHIQISH';else if(CR&&!me.pose&&me.grounded&&me.speed<3&&CR.canEnter())t='MASHINAGA O‘TIRISH';else if(me.pose)t=me.pose===3?'RAQSNI TO‘XTATISH':'TURISH';
   else if(me.grounded&&me.speed<3){const s=nearestSpot();if(s)t=s.t==='lie'?'YOTISH':s.t==='dance'?'RAQS':'O‘TIRISH'}
  }
  if(t!==ctxT){ctxT=t;const b=$('ctxBtn');b.textContent=t;b.classList.toggle('show',!!t)}
@@ -561,9 +621,9 @@ function toggleChat(open){
  p.classList.toggle('open',o);$('chatBtn').classList.toggle('on',o);document.body.classList.toggle('chatting',o);
  if(o)setTimeout(()=>$('messageInput').focus(),60);else $('messageInput').blur();
 }
-function doPunch(){if(!me||(CR&&CR.driving)||me.pose||me.flipT>=0||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
+function doPunch(){if(HE&&HE.flying){HE.down();return}if(!me||(CR&&CR.driving)||me.pose||me.flipT>=0||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
 function doFlip(kind){
- if(!me||!started||me.flipT>=0||me.pose||seat||(CR&&CR.driving)||me.lock>0||!me.grounded||document.body.classList.contains('modal'))return;
+ if(!me||!started||me.flipT>=0||me.pose||seat||(CR&&CR.driving)||(HE&&HE.flying)||me.lock>0||!me.grounded||document.body.classList.contains('modal'))return;
  initAudio();if(!me.flip(kind))return;sndJump(1);netSend({k:'a',a:'flip',f:kind});
 }
 function createControls(){
@@ -624,6 +684,7 @@ function updateMe(dt){
  if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;
  if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;
  const len=Math.hypot(ix,iy);
+ if(HE&&HE.flying){const jr=jumpReq;jumpReq=false;if(HE.fly(dt,ix,iy,keys,jr)){stepT=.25;return}}
  if(CR&&CR.driving){const jr=jumpReq;jumpReq=false;if(CR.drive(dt,ix,iy,!!keys.Space,jr)){stepT=.25;return}}
  // salto davomida joyida turadi: yurish/sakrash/fizika to'xtatiladi, tugagach boshqaruv o'zi qaytadi
  if(me.flipT>=0){ // oldinga siljish: oddiy fizika (to'qnashuv, zamin) orqali, yo'nalish flip boshidagi yo'nalish
@@ -653,10 +714,11 @@ function updateCamera(dt){
  if(!me)return;const c=me.root.position;
  if(!focInit||foc.distanceTo(c)>10){foc.copy(c);camY=c.y;camA=cameraAngle;camP=cameraPitch;focInit=true}
  const kf=1-Math.exp(-dt*12);foc.x+=(c.x-foc.x)*kf;foc.z+=(c.z-foc.z)*kf;
+ if(HE&&HE.flying&&camPointer===null&&HE.speed>2)cameraAngle+=shortest(-HE.yaw-cameraAngle)*(1-Math.exp(-dt*1.6));
  if(CR&&CR.driving&&camPointer===null&&CR.speed>1.5)cameraAngle+=shortest(-CR.yaw-cameraAngle)*(1-Math.exp(-dt*2.2));
  camA+=shortest(cameraAngle-camA)*(1-Math.exp(-dt*14));
  camP+=(cameraPitch-camP)*(1-Math.exp(-dt*10));
- const drv=CR&&CR.driving,wantD=(drv?7.4:me.running?4.5:3.8)*camK;camDist+=(wantD-camDist)*(1-Math.exp(-dt*4));
+ const drv=CR&&CR.driving,wantD=((HE&&HE.flying)?14:drv?7.4:me.running?4.5:3.8)*camK;camDist+=(wantD-camDist)*(1-Math.exp(-dt*4));
  camY+=(c.y+(me.fy||0)*.6-camY)*(1-Math.exp(-dt*6));
  const cp=Math.cos(camP),sp=Math.sin(camP),ty=camY+(camK<1?1.0:1.15)+(drv?.6:0);
  camera.position.set(foc.x+Math.sin(camA)*camDist*cp,Math.max(.35,ty+sp*camDist),foc.z-Math.cos(camA)*camDist*cp);
@@ -819,7 +881,9 @@ function warmup(){
   renderer.shadowMap.needsUpdate=true;scene.traverse(o=>{if(o.frustumCulled!==false){fc.push(o);o.frustumCulled=false}
    const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
    ms.forEach(mt=>{for(const k in mt){const v=mt[k];if(v&&v.isTexture)renderer.initTexture(v)}})});
+  if(window.roadsWarm)window.roadsWarm(true);   // uzoq kvartallar ham GPU ga oldindan yuklansin
   renderer.render(scene,camera);
+  if(window.roadsWarm)window.roadsWarm(false);
   fc.forEach(o=>{o.frustumCulled=true});
   gls.forEach(gl=>{if(gl)scene.remove(gl.scene)});
   kept.forEach(([o,c,r])=>{o.castShadow=c;o.receiveShadow=r});
@@ -882,13 +946,16 @@ function animate(t){
   warmT+=raw;
   if(raw>.25){fpsN=0;fpsT=0}
   else if(warmT>2.5){fpsN++;fpsT+=raw;if(fpsT>1.5){const f=fpsN/fpsT;fpsN=0;fpsT=0;
-   if(f<LOWF){fpsGood=0;if(++fpsBad>=2){fpsBad=0;if(PRcur>PRmin){PRcur=Math.max(PRmin,PRcur-.15);PRcap=PRcur+.1;upAt=t+15000;applyPR()}else if(sun.castShadow&&f<LOWF-10){sun.castShadow=false;toast('Soyalar o‘chirildi: qurilma sekin')}}}
+   if(f<LOWF){fpsGood=0;if(++fpsBad>=(MOB?1:2)){fpsBad=0;if(PRcur>PRmin){PRcur=Math.max(PRmin,PRcur-.15);PRcap=PRcur+.1;upAt=t+15000;applyPR()}else if(gfxPref==='auto'&&gfxMode!=='performance'){gfxApply(gfxMode==='ultra'?'balanced':'performance');toast('Grafika avtomatik: '+gfxMode.toUpperCase())}else if(gfxPref==='auto'&&sun.castShadow&&f<LOWF-8){sun.castShadow=false;toast('Soyalar o‘chirildi: qurilma sekin')}}}
    else{fpsBad=0;   // tezlik yetarli bo'lsa sifat sekin-asta qaytadi (avval pasaygan sifat hech qachon qaytmasdi)
     if(f>=HIFPS&&t>upAt&&PRcur<Math.min(PRmax,PRcap)){if(++fpsGood>=3){fpsGood=0;PRcur=Math.min(PRmax,PRcap,PRcur+.1);applyPR()}}else fpsGood=0}}}
  }
+ const _p0=DBG.on?performance.now():0;
  updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);cullChars();
- if(MOB)renderer.shadowMap.needsUpdate=!!(++shF&1);   // telefonda soya har 2-kadrda yangilanadi
+ if(SHE>1)renderer.shadowMap.needsUpdate=(++shF%SHE)===0;   // rejimga qarab soya har 2-3 kadrda yangilanadi
  if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));if(PL)PL.cops.forEach(o=>placeBubble(o.c));if(W)W.dancers.forEach(c=>placeBubble(c));updPops(dt);updCtx();remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
  updRadio();
+ const _p1=DBG.on?performance.now():0;
  renderer.render(scene,camera);
+ if(DBG.on)dbgTick(raw,_p1-_p0,performance.now()-_p1);
 }
