@@ -35,7 +35,9 @@ export function initCombat(C){
   setTimeout(()=>{const p=m0.root.position,r=m0.root.rotation.y,fx=Math.sin(r),fz=Math.cos(r),
    near=q=>{const dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz);return d<2.3&&(dx*fx+dz*fz)/(d||1)>.2&&Math.abs(q.y-p.y)<1.6};
    remotes.forEach((r2,id)=>{if(r2.char&&near(r2.char.root.position)&&!(fight&&fight.get(id)===fight.get(myInfo.id)))netSend({k:'h',to:id,d:k})});
-   bots.forEach(b=>{if(b.cd<=0&&near(b.c.root.position)){b.cd=.6;addScore(-10);C.pop?C.pop('−10 bal',b.c,'#ff8a8a'):toast('Botni urdingiz: -10 bal');b.c.say(OUCH[Math.floor(R()*OUCH.length)])}})},180)}
+   bots.forEach(b=>{if(b.cd<=0&&near(b.c.root.position)){b.cd=.6;addScore(-10);C.pop?C.pop('−10 bal',b.c,'#ff8a8a'):toast('Botni urdingiz: -10 bal');b.c.say(OUCH[Math.floor(R()*OUCH.length)]);if(C.crime&&!fight)C.crime('Odamni urdingiz')}});
+   if(C.cops)C.cops().forEach(q=>{if(near(q.root.position)&&C.crime&&!fight)C.crime('Politsiyaga qarshilik')});
+   if(C.crime&&!fight)remotes.forEach(r2=>{if(r2.char&&near(r2.char.root.position))C.crime('Odamni urdingiz')})},180)}
  function love(){
   const m0=me();if(!m0||loveCd>0)return;let best=null,bd=6;
   remotes.forEach((r,id)=>{if(!r.char)return;const d=r.char.root.position.distanceTo(m0.root.position);if(d<bd){bd=d;best=id}});

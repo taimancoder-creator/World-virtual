@@ -21,71 +21,100 @@ function win(p,x,z,rot,y=1.9){
  bx(g,1.5,1.3,.44,TRIM,0,0,0);bx(g,1.26,1.06,.46,GLASS,0,0,0,false);bx(g,1.26,.07,.5,TRIM,0,0,0,false);bx(g,.07,1.06,.5,TRIM,0,0,0,false);bx(g,1.8,.1,.7,TRIM,0,-.7,0);
  p.add(g);
 }
-/* ---------- DARAXTLAR: tana + shoxlar + barg ZARRALARI (kichik past-poligonli bo'laklar) ----------
-   Hammasi InstancedMesh: bir xil turdagi daraxtlar bitta chizish chaqiruviga birlashadi, hudud bo'yicha katakchalarga
-   bo'linadi (kamera/soya ko'rinmagan kataklarni o'tkazib yuboradi). Eski variantdan ~40 baravar yengil. */
+/* ---------- DARAXTLAR: 3D_daraxt.html prototipining 1:1 ko'chirmasi ----------
+   Bir xil algoritm: rekursiv shoxlanish (tana -> shoxlar -> novdalar), bezye-egri shaklli barglar (tomir teksturasi bilan),
+   po'stloq teksturasi + bump, "yoz" palitrasi. 0-variant prototipdagi birinchi daraxtning (seed 7) aynan o'zi.
+   O'yin uchun: har variant bitta tana + bitta barg geometriyasiga birlashtiriladi, ular katakchalar bo'yicha InstancedMesh qilinadi. */
 function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const MOBILE=typeof matchMedia==='function'&&(matchMedia('(pointer:coarse)').matches||innerWidth<700);
-const NPART=MOBILE?70:110,CELL=48;
-const LEAF_PAL=[[0x1f4d24,0x5ba13c],[0x265a22,0x6bb043],[0x2d5a1c,0x9ab43c],[0x1b4a2c,0x4f9a46]];
-function fin(g){g.computeVertexNormals();if(g.index)g=g.toNonIndexed();g.deleteAttribute('uv');return g}
-function tint(g,fn){const p=g.attributes.position,c=new Float32Array(p.count*3),t=new THREE.Color();
- for(let i=0;i<p.count;i++){fn(t,p.getX(i),p.getY(i),p.getZ(i));c[i*3]=t.r;c[i*3+1]=t.g;c[i*3+2]=t.b}
- g.setAttribute('color',new THREE.BufferAttribute(c,3));return g}
-// shox/tana bo'lagi: ingichkalashuvchi 5 yoqli silindr (p0 -> p1)
-function limb(a,b,r0,r1){
- const d=new THREE.Vector3().subVectors(b,a),L=d.length();let g=new THREE.CylinderGeometry(r1,r0,L,5,1,true);g.translate(0,L/2,0);
- g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()));g.translate(a.x,a.y,a.z);
- const y0=Math.min(a.y,b.y),y1=Math.max(a.y,b.y)+.001;
- return fin(tint(g,(t,x,y)=>{t.setHex(0x3a2a1c).lerp(new THREE.Color(0x6b5038),Math.min(1,Math.max(0,(y-y0)/(y1-y0))*.6+.1))}));
-}
-const _tet=new THREE.TetrahedronGeometry(1,0);
-// barg zarrasi: tasodifiy buralgan va cho'zilgan tetraedr (4 uchburchak)
-function leaf(x,y,z,s,R,lo,hi,yMin,yMax){
- const g=_tet.clone(),m=new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(R()*6.28,R()*6.28,R()*6.28)),new THREE.Vector3(s,s*(.55+R()*.35),s*(.8+R()*.4)));
- g.applyMatrix4(m);g.deleteAttribute('uv');
- const k=Math.min(1,Math.max(0,(y-yMin)/(yMax-yMin))),v=.82+R()*.36,c=new THREE.Color(lo).lerp(new THREE.Color(hi),k*.75+R()*.25).multiplyScalar(v);
- const p=g.attributes.position,col=new Float32Array(p.count*3);
- for(let i=0;i<p.count;i++){const sh=.8+.2*Math.min(1,Math.max(0,(p.getY(i)-y)/s+.5));col[i*3]=c.r*sh;col[i*3+1]=c.g*sh;col[i*3+2]=c.b*sh}
- g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();return g;
-}
-function makeVariant(i){
- const R=rng(101+i*37),h=2.2+R()*.9,[lo,hi]=LEAF_PAL[i%LEAF_PAL.length],V=THREE.Vector3,wood=[],tips=[];
- // tana: 3 bo'lak, ozgina egilgan, tagida kengaygan
- const lean=(R()-.5)*.5,pts=[new V(0,0,0),new V(lean*.35,h*.4,lean*.2),new V(lean*.7,h*.75,-lean*.3),new V(lean,h,lean*.1)],rad=[.34,.24,.17,.1];
- for(let k=0;k<3;k++)wood.push(limb(pts[k],pts[k+1],rad[k],rad[k+1]));
- // 5-6 ta asosiy shox (tananing yuqori yarmidan), har birida 1-2 ta novda
- const nb=5+(R()*2|0),top=pts[3];
- for(let k=0;k<nb;k++){
-  const a=k/nb*6.283+R()*.8,f=.5+R()*.5,from=new V().copy(pts[2]).lerp(pts[3],f),len=1.1+R()*.8,up=.55+R()*.5;
-  const to=new V(from.x+Math.cos(a)*len,from.y+up*len*.9,from.z+Math.sin(a)*len);
-  wood.push(limb(from,to,.09,.04));tips.push(to);
-  for(let q=0;q<1+(R()*2|0);q++){const a2=a+(R()-.5)*1.6,l2=.5+R()*.5,m=new V().copy(from).lerp(to,.55+R()*.3),t2=new V(m.x+Math.cos(a2)*l2,m.y+.35+R()*.4,m.z+Math.sin(a2)*l2);
-   wood.push(limb(m,t2,.045,.02));tips.push(t2)}
+const CELL=48;
+// SIFAT SOZLAMALARI. Kompyuter = prototip bilan bir xil (depth 6, dens .8). Sekin bo'lsa depth/seg/dens ni kamaytiring.
+const TQ=MOBILE?{depth:5,seg:3,dens:.6,sides:[4,7],bark:2048,leaf:512}:{depth:6,seg:5,dens:.8,sides:[6,10],bark:4096,leaf:1024};
+const TREE_SCALE=.75;                      // prototip daraxti ~8.5 birlik; o'yin o'lchamiga moslash (1 = prototipdagidek)
+const TSEEDS=[7,4181,9317,23011];          // 4 ta variant
+const SUMMER=[0x3f7d2c,0x4f9137,0x356b27,0x5ea040];
+const _Y=new THREE.Vector3(0,1,0);
+function barkTex(){
+ const S=TQ.bark,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
+ g.fillStyle='#5a4130';g.fillRect(0,0,S,S);
+ for(let i=0;i<2600;i++){
+  const x=Math.random()*S,w=2+Math.random()*S/220,dark=Math.random()<.6;
+  g.strokeStyle=dark?`rgba(28,18,10,${.15+Math.random()*.35})`:`rgba(150,115,80,${.1+Math.random()*.25})`;
+  g.lineWidth=w;g.beginPath();g.moveTo(x,0);let px=x;
+  for(let y=0;y<=S;y+=S/16){px+=(Math.random()-.5)*S/60;g.lineTo(px,y)}
+  g.stroke();
  }
- tips.push(new V(top.x,top.y+1.1,top.z),new V(top.x,top.y+.4,top.z));
- // barg zarralari: shox uchlari atrofida bulut ko'rinishida
- const yMin=h*.8,yMax=h+2.9,leaves=[];
- for(let n=0;n<NPART;n++){
-  const tp=tips[n%tips.length],a=R()*6.283,b=Math.acos(2*R()-1),r=.25+R()*.85,s=.3+R()*.3;
-  leaves.push(leaf(tp.x+Math.sin(b)*Math.cos(a)*r,tp.y+.15+Math.cos(b)*r*.7,tp.z+Math.sin(b)*Math.sin(a)*r,s,R,lo,hi,yMin,yMax));
+ const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+function leafTex(){
+ const S=TQ.leaf,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');g.scale(S/256,S/256);
+ g.fillStyle='#e9e9e9';g.fillRect(0,0,256,256);g.strokeStyle='#8a8a8a';g.lineCap='round';
+ g.lineWidth=5;g.beginPath();g.moveTo(128,256);g.lineTo(128,6);g.stroke();g.lineWidth=2;
+ for(let i=1;i<9;i++){const y=256-i*26;g.beginPath();g.moveTo(128,y);g.lineTo(128-70+i*3,y-34);g.moveTo(128,y);g.lineTo(128+70-i*3,y-34);g.stroke()}
+ const t=new THREE.CanvasTexture(c);t.anisotropy=8;t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+// barg shakli: prototipdagi bezye kontur, UV, uzunligi bo'ylab egilgan
+function leafShape(){
+ const sh=new THREE.Shape();sh.moveTo(0,0);sh.bezierCurveTo(.2,.08,.24,.42,0,.72);sh.bezierCurveTo(-.24,.42,-.2,.08,0,0);
+ const g=new THREE.ShapeGeometry(sh,TQ.seg),p=g.attributes.position,uv=g.attributes.uv;
+ for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);uv.setXY(i,(x+.25)/.5,y/.72);p.setZ(i,-y*y*.35+Math.abs(x)*.25)}
+ g.translate(0,-.36,0);g.computeVertexNormals();return g;
+}
+function makeVariant(seed){
+ const V=THREE.Vector3,R=rng(seed),MAXD=TQ.depth,wood=[],pts=[],M4=new THREE.Matrix4(),Q=new THREE.Quaternion(),ONE=new V(1,1,1);
+ function branch(start,dir,len,rad,depth){
+  const geo=new THREE.CylinderGeometry(rad*.68,rad,len,depth>3?TQ.sides[0]:TQ.sides[1],1,true);
+  geo.translate(0,len/2,0);geo.applyMatrix4(M4.compose(start,Q.setFromUnitVectors(_Y,dir),ONE));wood.push(geo);
+  const end=start.clone().addScaledVector(dir,len);
+  if(depth>=MAXD-1){const n=depth===MAXD?14:4;for(let i=0;i<n;i++)pts.push(end.clone().add(new V((R()-.5)*1.3,(R()-.5)*1.1,(R()-.5)*1.3)))}
+  if(depth>=MAXD)return;
+  const kids=depth===0?4:(R()<.35?3:2);
+  for(let k=0;k<kids;k++){
+   const ang=.4+R()*.55+(depth===0?.15:0),az=(k/kids)*Math.PI*2+R()*.9,up=Math.abs(dir.y)<.99?_Y:new V(1,0,0),
+    a=new V().crossVectors(dir,up).normalize(),b=new V().crossVectors(dir,a),
+    d=dir.clone().multiplyScalar(Math.cos(ang)).addScaledVector(a,Math.sin(ang)*Math.cos(az)).addScaledVector(b,Math.sin(ang)*Math.sin(az));
+   d.y+=.14;d.normalize();
+   branch(depth===0?end.clone().addScaledVector(dir,-len*(.12*k)):end,d,len*(.74+R()*.1),rad*.66,depth+1);
+  }
  }
- return mergeGeometries([...wood,...leaves]);
+ branch(new V(0,0,0),new V(0,1,0),2.8,.34,0);
+ for(let i=pts.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[pts[i],pts[j]]=[pts[j],pts[i]]}
+ // barglar: bitta geometriyaga qo'lda birlashtiriladi (tez)
+ const n=Math.floor(pts.length*TQ.dens),LG=leafShape(),bp=LG.attributes.position,bn=LG.attributes.normal,bu=LG.attributes.uv,bi=LG.index.array,vc=bp.count,ic=bi.length,
+  P=new Float32Array(n*vc*3),N=new Float32Array(n*vc*3),U=new Float32Array(n*vc*2),C=new Float32Array(n*vc*3),I=new Uint32Array(n*ic),
+  R2=rng(seed*3+1),pos=new V(),nv=new V(),col=new THREE.Color(),eu=new THREE.Euler(),nm=new THREE.Matrix3();
+ for(let l=0;l<n;l++){
+  eu.set(R2()*6.28,R2()*6.28,R2()*6.28);const sc=.5+R2()*.35;col.setHex(SUMMER[Math.floor(R2()*4)]);
+  M4.compose(pts[l],Q.setFromEuler(eu),pos.set(sc,sc,sc));nm.getNormalMatrix(M4);
+  for(let v=0;v<vc;v++){
+   const o=(l*vc+v)*3;pos.set(bp.getX(v),bp.getY(v),bp.getZ(v)).applyMatrix4(M4);P[o]=pos.x;P[o+1]=pos.y;P[o+2]=pos.z;
+   nv.set(bn.getX(v),bn.getY(v),bn.getZ(v)).applyMatrix3(nm).normalize();N[o]=nv.x;N[o+1]=nv.y;N[o+2]=nv.z;
+   C[o]=col.r;C[o+1]=col.g;C[o+2]=col.b;U[(l*vc+v)*2]=bu.getX(v);U[(l*vc+v)*2+1]=bu.getY(v);
+  }
+  for(let k=0;k<ic;k++)I[l*ic+k]=bi[k]+l*vc;
+ }
+ const lg=new THREE.BufferGeometry();
+ lg.setAttribute('position',new THREE.BufferAttribute(P,3));lg.setAttribute('normal',new THREE.BufferAttribute(N,3));
+ lg.setAttribute('uv',new THREE.BufferAttribute(U,2));lg.setAttribute('color',new THREE.BufferAttribute(C,3));lg.setIndex(new THREE.BufferAttribute(I,1));
+ const wg=mergeGeometries(wood);wg.scale(TREE_SCALE,TREE_SCALE,TREE_SCALE);lg.scale(TREE_SCALE,TREE_SCALE,TREE_SCALE);
+ return {w:wg,l:lg};
 }
 let TV=null;
-const TMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95,metalness:0});
+const BARK=barkTex(),TMAT=new THREE.MeshStandardMaterial({map:BARK,bumpMap:BARK,bumpScale:1.2,roughness:.95,metalness:0}),
+ LMAT=new THREE.MeshStandardMaterial({map:leafTex(),vertexColors:true,side:THREE.DoubleSide,roughness:.75,metalness:0});
 const TREG=new WeakMap();
-export function treeParts(){if(!TV)TV=[0,1,2,3].map(makeVariant);return TV}
+export function treeParts(){if(!TV)TV=TSEEDS.map(makeVariant);return TV}
 // daraxtlar ro'yxatga olinadi va bir marta (mikrotask) katakchalar bo'yicha InstancedMesh ga yig'iladi
 function flushTrees(parent,q){
  const V=treeParts(),cells=new Map();
  for(const t of q){const key=t.v+'|'+Math.floor(t.x/CELL)+'|'+Math.floor(t.z/CELL);let a=cells.get(key);if(!a)cells.set(key,a=[]);a.push(t)}
  const o=new THREE.Object3D(),col=new THREE.Color();
  for(const [key,a] of cells){
-  const m=new THREE.InstancedMesh(V[+key.split('|')[0]],TMAT,a.length);
-  a.forEach((t,i)=>{o.position.set(t.x,0,t.z);o.rotation.set(t.rx,t.ry,t.rz);o.scale.set(t.sx,t.sy,t.sx);o.updateMatrix();m.setMatrixAt(i,o.matrix);
-   const k=.88+Math.random()*.24;m.setColorAt(i,col.setRGB(k,k*(.96+Math.random()*.08),k*.96))});
-  m.castShadow=true;m.receiveShadow=false;m.instanceMatrix.needsUpdate=true;m.computeBoundingSphere();parent.add(m);
+  const v=V[+key.split('|')[0]],ms=[new THREE.InstancedMesh(v.w,TMAT,a.length),new THREE.InstancedMesh(v.l,LMAT,a.length)];
+  a.forEach((t,i)=>{o.position.set(t.x,0,t.z);o.rotation.set(t.rx,t.ry,t.rz);o.scale.set(t.sx,t.sy,t.sx);o.updateMatrix();
+   const k=.88+Math.random()*.24;col.setRGB(k,k*(.96+Math.random()*.08),k*.96);
+   for(const m of ms){m.setMatrixAt(i,o.matrix);m.setColorAt(i,col)}});
+  for(const m of ms){m.castShadow=true;m.receiveShadow=false;m.instanceMatrix.needsUpdate=true;m.computeBoundingSphere();parent.add(m)}
  }
 }
 export const makeTree=K=>(x,z)=>{

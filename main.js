@@ -4,7 +4,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import {initWorld} from './world.js';
 import {initCombat} from './combat.js';
 import {initUI} from './ui.js';
-import {buildTerrain,buildSky,groundMat} from './terrain.js';import {initBoqiy,BQZ} from './boqiy.js';
+import {buildTerrain,buildSky,groundMat} from './terrain.js';import {initBoqiy,BQZ} from './boqiy.js';import {initCars} from './cars.js';import {initPolice} from './police.js';
 const $=id=>document.getElementById(id);
 // personajlar: rasm (img) va model (model) nomi bir xil. Yangi personaj qo'shish uchun shu ro'yxatga qator qo'shing
 const CHARS=[
@@ -148,9 +148,9 @@ function buildWorld(){
  const gr=put(new THREE.Mesh(new THREE.PlaneGeometry(700,700),groundMat()),0,0,0,false);gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;
  buildTerrain(scene);buildSky(scene);
 }
-let W=null,CB=null,BQ=null;
+let W=null,CB=null,BQ=null,CR=null,PL=null;
 function updateWorld(dt){
- if(W)W.update(dt);if(CB)CB.update(dt);if(BQ)BQ.update(dt);
+ if(W)W.update(dt);if(CB)CB.update(dt);if(BQ)BQ.update(dt);if(CR)CR.update(dt);if(PL)PL.update(dt);
  // === bu yerga sahna animatsiyalari (kun/tun, aylanuvchi obyektlar...) qo'shiladi ===
  if(me){const t=me.root.position,a=t.x*_SR.x+t.z*_SR.z,b=t.x*_SU.x+t.z*_SU.z,da=a-Math.round(a/_ST)*_ST,db=b-Math.round(b/_ST)*_ST,
   tx=t.x-da*_SR.x-db*_SU.x,ty=-da*_SR.y-db*_SU.y,tz=t.z-da*_SR.z-db*_SU.z;
@@ -169,13 +169,16 @@ function init(){
  sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=true;sun.shadow.mapSize.set(SHM,SHM);
  Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,far:160});scene.add(sun,sun.target);
  const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,view:inView,barTok:BARH,beat:beatNow,nChars:CHARS.length});
- CB=initCombat({ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
+ CB=initCombat({crime:t=>PL&&PL.crime(t),cops:()=>PL?PL.cops.map(o=>o.c):[],ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
+ PL=initPolice({toast,tone,addScore,addMoney,body,P,far:BQZ,me:()=>me,loadModel:spawnModel});
  try{BQ=initBoqiy({scene,solids,toast,tone,addScore,addMoney,me:()=>me})}catch(e){console.error('Boqiy Shahar yuklanmadi',e)}
+ try{CR=initCars({scene,solids,toast,tone,netSend,remotes,me:()=>me})}catch(e){console.error('Mashina yuklanmadi',e)}
  camera.position.set(0,3,-6);
- fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;fitCam();renderer.setSize(innerWidth,innerHeight)};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250))}
+ fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;fitCam();renderer.setSize(innerWidth,innerHeight)};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250));document.addEventListener('fullscreenchange',()=>setTimeout(rs,200))}
 }
 /* ===== PERSONAJ (GLB) ===== */
 const spawnChar=(g,n,x,z)=>loadGltf(g).then(gl=>{const c=new Char(gl,n,g,false);c.root.position.set(x,0,z);return c});
+const spawnModel=(url,n,x,z)=>new Promise((ok,no)=>loader.load(url,ok,undefined,no)).then(gl=>{const c=new Char(gl,n,0,false);c.root.position.set(x,0,z);return c});
 function loadGltf(g,onp){
  if(!gltfCache.has(g))gltfCache.set(g,new Promise((ok,no)=>loader.load(CHARS[g].model,ok,e=>{if(onp&&e.lengthComputable&&e.total)onp(e.loaded/e.total)},no)));
  return gltfCache.get(g);
@@ -493,8 +496,8 @@ function updPops(dt){
 }
 function cullChars(){
  camera.updateMatrixWorld();_pm.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);_fr.setFromProjectionMatrix(_pm);
- const t=c=>{_sp.center.copy(c.root.position);_sp.center.y+=1;c.root.visible=_fr.intersectsSphere(_sp)};
- if(CB)CB.bots.forEach(b=>t(b.c));if(W)W.dancers.forEach(c=>{t(c);if(c.off)c.root.visible=false});remotes.forEach(r=>{if(r.char)t(r.char)});
+ const t=c=>{_sp.center.copy(c.root.position);_sp.center.y+=1;c.root.visible=!c.hid&&_fr.intersectsSphere(_sp)};
+ if(CB)CB.bots.forEach(b=>t(b.c));if(PL)PL.cops.forEach(o=>t(o.c));if(W)W.dancers.forEach(c=>{t(c);if(c.off)c.root.visible=false});remotes.forEach(r=>{if(r.char)t(r.char)});
 }
 /* ===== LOG ===== */
 function say(t){const d=document.createElement('div');d.textContent=t;$('log').appendChild(d);
@@ -513,7 +516,9 @@ function standUp(){
 }
 function ctxPress(){
  if(!me||!started||me.lock>0||me.flipT>=0)return;initAudio();
+ if(CR&&CR.driving){CR.exit();return}
  if(me.pose){standUp();return}
+ if(CR&&me.grounded&&CR.canEnter()){CR.enter();return}
  const s=nearestSpot();if(!s||!me.grounded)return;
  if(s.t==='dance'){me.setPose(3);dAt={x:me.root.position.x,z:me.root.position.z};return}
  seat={s};me.setPose(s.t==='lie'?2:1);me.vx=me.vz=me.vy=0;
@@ -529,7 +534,7 @@ function seatTick(dt,len){
 function updCtx(){
  let t='';
  if(started&&me&&me.lock<=0&&!document.body.classList.contains('modal')){
-  if(me.pose)t=me.pose===3?'RAQSNI TO‘XTATISH':'TURISH';
+  if(CR&&CR.driving)t='MASHINADAN CHIQISH';else if(CR&&!me.pose&&me.grounded&&me.speed<3&&CR.canEnter())t='MASHINAGA O‘TIRISH';else if(me.pose)t=me.pose===3?'RAQSNI TO‘XTATISH':'TURISH';
   else if(me.grounded&&me.speed<3){const s=nearestSpot();if(s)t=s.t==='lie'?'YOTISH':s.t==='dance'?'RAQS':'O‘TIRISH'}
  }
  if(t!==ctxT){ctxT=t;const b=$('ctxBtn');b.textContent=t;b.classList.toggle('show',!!t)}
@@ -540,9 +545,9 @@ function toggleChat(open){
  p.classList.toggle('open',o);$('chatBtn').classList.toggle('on',o);document.body.classList.toggle('chatting',o);
  if(o)setTimeout(()=>$('messageInput').focus(),60);else $('messageInput').blur();
 }
-function doPunch(){if(!me||me.pose||me.flipT>=0||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
+function doPunch(){if(!me||(CR&&CR.driving)||me.pose||me.flipT>=0||me.lock>me.lockT*.45)return;sndPunch();me.punch(me.combo);if(CB)CB.hit();netSend({k:'a',a:'punch',c:me.combo});me.combo=(me.combo+1)%4}
 function doFlip(kind){
- if(!me||!started||me.flipT>=0||me.pose||seat||me.lock>0||!me.grounded||document.body.classList.contains('modal'))return;
+ if(!me||!started||me.flipT>=0||me.pose||seat||(CR&&CR.driving)||me.lock>0||!me.grounded||document.body.classList.contains('modal'))return;
  initAudio();if(!me.flip(kind))return;sndJump(1);netSend({k:'a',a:'flip',f:kind});
 }
 function createControls(){
@@ -586,6 +591,7 @@ function body(c,tvx,tvz,has,dt,jr){
   if(ox>0&&oz>0){if(ox<oz)p.x+=(dx<0?-1:1)*ox;else p.z+=(dz<0?-1:1)*oz}
  }
  let gh=0;for(const s of solids)if(Math.abs(p.x-s.x)<s.hx+.15&&Math.abs(p.z-s.z)<s.hz+.15&&s.top<=p.y+.4&&s.top>gh)gh=s.top;
+ if(p.z<BQZ-400&&window.roadGroundH&&p.y<.5)gh=Math.max(gh,window.roadGroundH(p.x,p.z));
  if(jr&&(c.grounded||c.jc<2)){c.vy=c.grounded?JUMP:JUMP*.9;c.jc=c.grounded?1:2;c.grounded=false;if(c===me)sndJump(c.jc)}
  c.vy-=G*dt;p.y+=c.vy*dt;
  if(p.y<=gh){if(c.vy<-7&&c===me)sndLand();p.y=gh;c.vy=0;c.grounded=true;c.jc=0}
@@ -602,6 +608,7 @@ function updateMe(dt){
  if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;
  if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;
  const len=Math.hypot(ix,iy);
+ if(CR&&CR.driving){const jr=jumpReq;jumpReq=false;if(CR.drive(dt,ix,iy,!!keys.Space,jr)){stepT=.25;return}}
  // salto davomida joyida turadi: yurish/sakrash/fizika to'xtatiladi, tugagach boshqaruv o'zi qaytadi
  if(me.flipT>=0){ // oldinga siljish: oddiy fizika (to'qnashuv, zamin) orqali, yo'nalish flip boshidagi yo'nalish
   jumpReq=false;const fs=me.flipSpeed();me.vx=me.fdx*fs;me.vz=me.fdz*fs;
@@ -630,11 +637,12 @@ function updateCamera(dt){
  if(!me)return;const c=me.root.position;
  if(!focInit||foc.distanceTo(c)>10){foc.copy(c);camY=c.y;camA=cameraAngle;camP=cameraPitch;focInit=true}
  const kf=1-Math.exp(-dt*12);foc.x+=(c.x-foc.x)*kf;foc.z+=(c.z-foc.z)*kf;
+ if(CR&&CR.driving&&camPointer===null&&CR.speed>1.5)cameraAngle+=shortest(-CR.yaw-cameraAngle)*(1-Math.exp(-dt*2.2));
  camA+=shortest(cameraAngle-camA)*(1-Math.exp(-dt*14));
  camP+=(cameraPitch-camP)*(1-Math.exp(-dt*10));
- const wantD=(me.running?4.5:3.8)*camK;camDist+=(wantD-camDist)*(1-Math.exp(-dt*4));
+ const drv=CR&&CR.driving,wantD=(drv?7.4:me.running?4.5:3.8)*camK;camDist+=(wantD-camDist)*(1-Math.exp(-dt*4));
  camY+=(c.y+(me.fy||0)*.6-camY)*(1-Math.exp(-dt*6));
- const cp=Math.cos(camP),sp=Math.sin(camP),ty=camY+(camK<1?1.0:1.15);
+ const cp=Math.cos(camP),sp=Math.sin(camP),ty=camY+(camK<1?1.0:1.15)+(drv?.6:0);
  camera.position.set(foc.x+Math.sin(camA)*camDist*cp,Math.max(.35,ty+sp*camDist),foc.z-Math.cos(camA)*camDist*cp);
  camera.lookAt(foc.x,ty+Math.max(0,-camP)*2,foc.z);
 }
@@ -659,35 +667,29 @@ function updateRemotes(dt){
  });
 }
 /* ===== TARMOQ (MQTT) ===== */
-let net=null,lastSent='',netSeq=0;
-const mqttPool=[];   // bir vaqtning o'zida 2-3 ta broker (hamma o'yinchilar umumiy broker orqali uchrashadi)
-const netUp=()=>mqttPool.some(c=>c.connected);
+let net=null,mqttClient=null,lastSent='';
 const loadJs=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.appendChild(e)});
-function netSend(o){if(!net)return;const m=JSON.stringify({...o,id:myInfo.id,u:++netSeq});mqttPool.forEach(c=>{try{if(c.connected)c.publish(net.base,m)}catch(e){}})}
+function netSend(o){try{if(mqttClient&&mqttClient.connected)mqttClient.publish(net.base,JSON.stringify({...o,id:myInfo.id}))}catch(e){}}
 const fin=v=>typeof v==='number'&&isFinite(v);
 async function connect(){
  if(!window.mqtt){try{await loadJs('https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js')}catch(e){try{await loadJs('https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js')}catch(e2){say('Tarmoq kutubxonasi yuklanmadi: yolg‘iz rejim');return}}}
  const code=(location.hash.match(/r=([a-z0-9]{4,12})/)||[])[1]||'olam';
  net={base:'taiman-gta-v1/'+code};
  const B=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081'];
- const seen=new Map(),started=[];let wasUp=false;
- // bir xil xabar ikki brokerdan kelsa, bir marta ishlanadi
- const dup=d=>{if(!d.u)return false;let s=seen.get(d.id);if(!s)seen.set(d.id,s=new Set());if(s.has(d.u))return true;s.add(d.u);if(s.size>300)s.delete(s.values().next().value);return false};
- const refresh=()=>{const u=netUp();
-  if(u&&!wasUp){wasUp=true;$('chip').classList.remove('off');say('Onlayn olamga ulandingiz')}
-  else if(!u&&wasUp){wasUp=false;$('chip').classList.add('off');say('Aloqa uzildi, qayta ulanmoqda…')}};
- function start(i){
-  if(started[i])return;started[i]=1;
-  const c=mqtt.connect(B[i],{clientId:'tg'+myInfo.id+i,keepalive:30,reconnectPeriod:3000,connectTimeout:6000,clean:true});
-  mqttPool.push(c);
-  c.on('connect',()=>{c.subscribe(net.base,err=>{if(err)return;lastSent='';sendPresence();refresh()})});
-  c.on('message',(t,m)=>{try{const d=JSON.parse(m.toString());if(d&&typeof d==='object'&&d.id&&d.id!==myInfo.id&&!dup(d))handle(d)}catch(e){}});
-  c.on('close',refresh);
-  c.on('error',()=>{});
+ let bi=0,fails=0,up=false;
+ function go(){
+  const u=B[bi%B.length];let ok=false,dead=false;
+  const c=mqtt.connect(u,{clientId:'tg'+myInfo.id+bi,keepalive:30,reconnectPeriod:2000,connectTimeout:6000,clean:true,
+   will:{topic:net.base,payload:JSON.stringify({k:'l',id:myInfo.id}),qos:0}});
+  mqttClient=c;
+  const bad=()=>{if(ok||dead)return;dead=true;clearTimeout(to);try{c.end(true)}catch(e){}bi++;fails++;setTimeout(go,Math.min(6000,700*fails))};
+  const to=setTimeout(bad,8000);
+  c.on('connect',()=>{ok=true;clearTimeout(to);fails=0;c.subscribe(net.base,err=>{if(err)return;up=true;$('chip').classList.remove('off');say('Onlayn olamga ulandingiz');sendPresence()})});
+  c.on('message',(t,m)=>{try{const d=JSON.parse(m.toString());if(d&&typeof d==='object'&&d.id&&d.id!==myInfo.id)handle(d)}catch(e){}});
+  c.on('close',()=>{if(!ok)bad();else if(up){up=false;$('chip').classList.add('off');say('Aloqa uzildi, qayta ulanmoqda…')}});
+  c.on('error',()=>{if(!ok)bad()});
  }
- start(0);start(1);
- // 2 tadan kam broker ishlayotgan bo'lsa, uchinchisi ham yoqiladi
- setInterval(()=>{if(!started[2]&&mqttPool.filter(c=>c.connected).length<2)start(2)},8000);
+ go();
  setInterval(sendPresence,150);
  addEventListener('pagehide',()=>netSend({k:'l'}));
 }
@@ -723,6 +725,7 @@ function handle(d){
  else if(d.k==='r'||d.k==='b'){if(W)W.onNet(id,d)}
  else if(d.k==='h'||d.k==='f'||d.k==='t'||d.k==='lv'){if(CB)CB.onNet(id,d)}
  else if(d.k==='v'){playVoice(id,d)}
+ else if(d.k==='cr'){if(CR)CR.onNet(id,d)}
 }
 /* ===== CHAT ===== */
 let chatT=0;
@@ -752,7 +755,7 @@ function seg(){
 }
 async function pttDown(){
  initAudio();if(VO.on||!started)return;
- if(!netUp()){say('Ratsiya uchun onlayn bo‘ling');return}
+ if(!mqttClient||!mqttClient.connected){say('Ratsiya uchun onlayn bo‘ling');return}
  VO.on=true;$('ptt').classList.add('on');
  if(!await micInit()){VO.on=false;$('ptt').classList.remove('on');return}
  if(!VO.on)return;sndPtt();seg();
@@ -822,12 +825,24 @@ function rotHint(){
  if(seen||!mob()||!port())return;
  const done=()=>{box.classList.remove('open');try{localStorage.setItem('tg_rot','1')}catch(e){}};
  box.classList.add('open');
- $('rotOk').onclick=()=>{done();try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}};
+ $('rotOk').onclick=()=>{done();goFullLandscape()};
  addEventListener('resize',()=>{if(!port()&&box.classList.contains('open'))done()});
 }
 init();createControls();animate();preload();
+/* to'liq ekran + gorizontal holat (foydalanuvchi bosganda ishlaydi; brauzer faqat tugma bosilganda ruxsat beradi) */
+function goFullLandscape(){
+ try{
+  const d=document,el=d.documentElement,isFs=()=>d.fullscreenElement||d.webkitFullscreenElement;
+  const lock=()=>{try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}};
+  if(isFs()){lock();return}
+  const rq=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(rq){const p=rq.call(el,{navigationUI:'hide'});if(p&&p.then)p.then(lock).catch(lock);else setTimeout(lock,100)}
+  else lock();
+ }catch(e){}
+}
 $('go').onclick=async()=>{
  if(selG<0)return;
+ goFullLandscape();
  const nk=$('nick').value.trim().slice(0,16);
  myInfo.name=nk||('Taiman'+Math.floor(100+Math.random()*900));myInfo.g=selG;
  try{localStorage.setItem('tg_n',nk);localStorage.setItem('tg_c',CHARS[selG].id)}catch(e){}
@@ -837,7 +852,7 @@ $('go').onclick=async()=>{
   me=new Char(gl,myInfo.name,selG,true);me.root.position.set((Math.random()-.5)*10,0,(Math.random()-.5)*10);if(P.rank)me.setRank(P.rank);
  }catch(e){console.error(e);$('msg').textContent='Model yuklanmadi: '+CHARS[selG].model;$('go').disabled=false;return}
  $('intro').style.display='none';started=true;tone(660,.15,.12,'sine',990);
- say('Salom, '+myInfo.name+'!');connect();if(CB)CB.start();
+ say('Salom, '+myInfo.name+'!');connect();if(CB)CB.start();if(PL)PL.start();
 };
 /* ===== SIKL ===== */
 function animate(t){
@@ -853,7 +868,7 @@ function animate(t){
    if(f<50){if(++fpsBad>=2&&PRcur>PRmin){fpsBad=0;PRcur=Math.max(PRmin,PRcur-.25);applyPR()}}else fpsBad=0}}
  }
  updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);cullChars();
- if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));if(W)W.dancers.forEach(c=>placeBubble(c));updPops(dt);updCtx();remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
+ if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));if(PL)PL.cops.forEach(o=>placeBubble(o.c));if(W)W.dancers.forEach(c=>placeBubble(c));updPops(dt);updCtx();remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
  updRadio();
  renderer.render(scene,camera);
 }

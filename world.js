@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import {makeTree,buildHouse,buildBank,buildBar,buildPark} from './buildings.js';
+import {buildRoads} from './roads.js';
+import {buildGrass} from './grass.js';
 // Dunyo: landshaft, binolar, orollar, portal, uy, poyga, shahar qurish. main.js dan initWorld(C) bilan ulanadi.
 export function initWorld(C){
  const {scene,solids,mat,put,slab,toast,tone,P,netSend,addScore,addMoney}=C,R=Math.random,coins=[],spin=[],pads=[],clouds=[];
@@ -11,11 +13,11 @@ export function initWorld(C){
  const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),view:C.view,onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam},tree=makeTree(K);
  const coin=(x,y,z,v=25,s=5)=>{const m=put(new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.07,20),mat(0xf2b92a,0x9a6a00,.6)),x,y,z,false);m.rotation.x=Math.PI/2;coins.push({m,x,y,z,v,s,t:0})};
  // landshaft: yo'llar, suv, tog'lar, bulutlar, daraxtlar
- flat(8,180,0x2b2f36,0,0,.02);flat(180,8,0x2b2f36,0,0,.021);
+ const roads=buildRoads(scene,ticks,matchMedia('(pointer:coarse)').matches||innerWidth<700); // 3D yo'l modeli (roads.js)
  const pond=put(new THREE.Mesh(new THREE.CircleGeometry(13,32),new THREE.MeshStandardMaterial({color:0x2a8fd6,roughness:.15,metalness:.2})),-45,.05,45,false);pond.rotation.x=-Math.PI/2;
  const cgeo=new THREE.SphereGeometry(1,8,6),cmat=new THREE.MeshBasicMaterial({color:0xffffff,fog:false});
  for(let i=0;i<8;i++){const g=new THREE.Group();for(let j=0;j<3;j++){const b=new THREE.Mesh(cgeo,cmat);b.scale.setScalar(4+R()*3);b.position.set(j*5-5,R()*2,R()*3);b.scale.y*=.55;g.add(b)}g.position.set((R()-.5)*300,105+R()*30,(R()-.5)*300);g.scale.setScalar(2.4);scene.add(g);clouds.push(g)}
- for(let i=0;i<26;i++){let x,z;do{x=(R()-.5)*170;z=(R()-.5)*170}while(Math.abs(x)<8||Math.abs(z)<8||Math.hypot(x+45,z-45)<16||Math.hypot(x,z)<14||Math.abs(x+40)<8&&z<0);tree(x,z)}
+ for(let i=0;i<26;i++){let x,z;do{x=(R()-.5)*170;z=(R()-.5)*170}while(roads.near(x,z,1)||Math.hypot(x+45,z-45)<16||Math.hypot(x,z)<14||Math.abs(x+40)<8&&z<0);tree(x,z)}
  // 4 ta baland bino
  const wc=document.createElement('canvas');wc.width=64;wc.height=128;const wx=wc.getContext('2d');wx.fillStyle='#26303f';wx.fillRect(0,0,64,128);
  for(let i=0;i<4;i++)for(let j=0;j<8;j++){wx.fillStyle=R()<.6?'#ffd98a':'#35506e';wx.fillRect(6+i*15,6+j*15,9,9)}
@@ -42,7 +44,8 @@ export function initWorld(C){
  const house=(hx,hz,secret)=>buildHouse(K,hx,hz,secret);
  const H1=house(-25,-30,true);
  // poyga: start, to'siqlar, finish
- const SX=-40,SZ=-8,FZ=-80;let race=null,rcd=0;
+ const SX=-40,SZ=-12,FZ=-80;let race=null,rcd=0;
+ buildGrass(scene,ticks,roads,matchMedia('(pointer:coarse)').matches||innerWidth<700,[[-45,45,15],[SX,SZ,5],[-20,15,4],[-28,12,3],[-25,-30,7]]); // yo'l chetidagi o't (grass.js)
  const rg=put(new THREE.Mesh(new THREE.RingGeometry(2,2.6,32),glow(0x00eaff,.8)),SX,.06,SZ,false);rg.rotation.x=-Math.PI/2;lbl('START (2 kishi)','#00eaff',4.6,SX,3.2,SZ);
  for(let k=0;k<6;k++)slab(SX+(k%2?4:-4),-20-k*10,4,2,1.2+(k%3)*.1,mat(0xffb347));
  put(new THREE.Mesh(new THREE.BoxGeometry(14,.3,.3),mat(0xffffff)),SX,4.5,FZ);put(new THREE.Mesh(new THREE.BoxGeometry(.4,4.5,.4),mat(0xffffff)),SX-7,2.25,FZ);put(new THREE.Mesh(new THREE.BoxGeometry(.4,4.5,.4),mat(0xffffff)),SX+7,2.25,FZ);lbl('FINISH','#ffffff',5,SX,6,FZ);

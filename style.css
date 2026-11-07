@@ -160,3 +160,17 @@ body.chatting .ctx,body.modal .ctx{display:none}
 @media(max-height:480px){#flipMain{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px)}#flipPanel{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px + var(--bt) + 6px)}}
 body.chatting #flipMain,body.chatting #flipPanel{opacity:0;pointer-events:none}
 body.modal #flipMain,body.modal #flipPanel{opacity:.3;pointer-events:none}
+/* ---------- KULRANG SHAFOF TUGMALAR (o'yin interfeysi) ---------- */
+:root{--gl:rgba(120,125,135,.34);--gb:rgba(255,255,255,.22)}
+.ib,.action,#logo,#chip,.ctx,#send,#flipPanel{background:var(--gl)!important;border:1.2px solid var(--gb)!important;color:#fff!important;box-shadow:none!important;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#punch,#jump,#flipMain,#flipBtn,#sideBtn,#backBtn,#twFBtn,#twBBtn,#chatBtn.on,#ptt.on{background:var(--gl)!important;border-color:var(--gb)!important;color:#fff!important}
+#flipPanel{background:rgba(90,95,105,.3)!important}
+#flipPanel .action{background:var(--gl)!important}
+#ctxBtn,.ctx{animation:none!important}
+#joystick{background:rgba(120,125,135,.2)!important;border-color:var(--gb)!important;box-shadow:none!important}
+#stick{background:rgba(190,195,205,.55)!important;border-color:rgba(255,255,255,.4)!important;box-shadow:none!important}
+#joystick.run{border-color:rgba(255,255,255,.5)!important}
+#flipMain.on{background:rgba(160,165,175,.5)!important}
+.ib.open{color:#fff!important;border-color:rgba(255,255,255,.6)!important}
+/* ekranni aylantirish haqidagi oyna ko'rsatilmaydi */
+#rot,#rot.open{display:none!important}
