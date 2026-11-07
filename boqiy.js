@@ -170,7 +170,7 @@ export function initBoqiy(C){
  function update(dt){
   wT+=dt;pcd-=dt;
   for(const g of spin)g.rotation.y+=dt;
-  const me=C.me();if(!me)return;const p=me.root.position,inZ=p.z>BQZ-400;
+  const me=C.me();if(!me)return;const p=me.root.position,inZ=p.z>BQZ-400;G.visible=inZ;   // asosiy xaritada Boqiy Shahar butunlay chizilmaydi
   if(inZ){
    if(noria)noria.rotation.z=-wT*.6;
    if(++fr%3===0){const a=wp.array;for(let i=0;i<a.length;i+=3){a[i+1]=wb[i+1]+Math.sin(a[i]*.12+wT*1.1)*.05+Math.sin(a[i+2]*.5+wT*1.6)*.035}wp.needsUpdate=true}

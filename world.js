@@ -45,7 +45,7 @@ export function initWorld(C){
  const H1=house(-25,-30,true);
  // poyga: start, to'siqlar, finish
  const SX=-40,SZ=-12,FZ=-80;let race=null,rcd=0;
- buildGrass(scene,ticks,roads,matchMedia('(pointer:coarse)').matches||innerWidth<700,[[-45,45,15],[SX,SZ,5],[-20,15,4],[-28,12,3],[-25,-30,7]]); // yo'l chetidagi o't (grass.js)
+ buildGrass(scene,ticks,roads,matchMedia('(pointer:coarse)').matches||innerWidth<700,[[-45,45,15],[SX,SZ,5],[-20,15,4],[-28,12,3],[-25,-30,7]],C.cam); // yo'l chetidagi o't (grass.js)
  const rg=put(new THREE.Mesh(new THREE.RingGeometry(2,2.6,32),glow(0x00eaff,.8)),SX,.06,SZ,false);rg.rotation.x=-Math.PI/2;lbl('START (2 kishi)','#00eaff',4.6,SX,3.2,SZ);
  for(let k=0;k<6;k++)slab(SX+(k%2?4:-4),-20-k*10,4,2,1.2+(k%3)*.1,mat(0xffb347));
  put(new THREE.Mesh(new THREE.BoxGeometry(14,.3,.3),mat(0xffffff)),SX,4.5,FZ);put(new THREE.Mesh(new THREE.BoxGeometry(.4,4.5,.4),mat(0xffffff)),SX-7,2.25,FZ);put(new THREE.Mesh(new THREE.BoxGeometry(.4,4.5,.4),mat(0xffffff)),SX+7,2.25,FZ);lbl('FINISH','#ffffff',5,SX,6,FZ);

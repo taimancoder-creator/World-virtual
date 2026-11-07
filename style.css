@@ -174,3 +174,21 @@ body.modal #flipMain,body.modal #flipPanel{opacity:.3;pointer-events:none}
 .ib.open{color:#fff!important;border-color:rgba(255,255,255,.6)!important}
 /* ekranni aylantirish haqidagi oyna ko'rsatilmaydi */
 #rot,#rot.open{display:none!important}
+/* ---------- TELEGRAM / QULFLANGAN TIK EKRAN: o'yin oynasi 90° buriladi (main.js syncFL). Haqiqiy gorizontal holatdagi (max-height:480px) qoidalarning nusxasi ---------- */
+html{background:#0a111c}
+body.fl{inset:auto!important;left:0;top:0;transform-origin:0 0;
+ --st:env(safe-area-inset-right,0px);--sr:env(safe-area-inset-bottom,0px);--sb:env(safe-area-inset-left,0px);--sl:env(safe-area-inset-top,0px);
+ --ib:32px;--bt:50px;--js:100px;
+ --row1:calc(var(--st) + 10px);--row2:calc(var(--st) + 18px + var(--ib));--fb:calc(var(--bt)*.8)}
+body.fl #joystick{bottom:calc(var(--sb) + 10px)}
+body.fl #actions{bottom:calc(var(--sb) + 10px);gap:6px}
+body.fl #log{width:200px;font-size:10px}
+body.fl #radio,body.fl #hud{max-width:300px}
+body.fl #toast{top:calc(var(--st) + 52px);max-width:420px}
+body.fl #chatPanel{bottom:auto;top:calc(var(--st) + 8px)}
+body.fl #shop,body.fl #fight{top:calc(var(--row2) + 6px);width:240px;max-height:calc(var(--vh,360px) - var(--row2) - 16px - var(--sb))}
+body.fl #hp{bottom:calc(var(--sb) + 10px)}
+body.fl #term{height:min(calc(var(--vh,360px)*.5),200px)}
+body.fl .ctx{bottom:calc(var(--sb) + 10px + var(--bt)*2 + 16px)}
+body.fl #flipMain{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px)}
+body.fl #flipPanel{right:calc(var(--sr) + 16px + var(--bt)*2 + 18px);bottom:calc(var(--sb) + 10px + var(--bt) + 6px)}

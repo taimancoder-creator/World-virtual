@@ -21,14 +21,30 @@ const loader=new GLTFLoader(),gltfCache=new Map();
 const myInfo={name:'Taiman',g:0,id:Math.random().toString(36).slice(2,10)};
 const remotes=new Map(),joyDir=new THREE.Vector2(),keys={};
 let cameraAngle=0,cameraPitch=.2,camPointer=null,lastX=0,lastY=0,joystickPointer=null,stepT=0,camDist=3.8,camK=1;
-const MIN_DT=0;   // kadr chegarasi (ms): 0 = cheklovsiz (120 Hz da 120 FPS). Qizisa 10 qiling: 120 Hz da ~60 FPS bo'ladi
-const MOB=matchMedia('(pointer:coarse)').matches||innerWidth<700||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent),PRmin=1,SHM=MOB?768:1024;
-let fpsN=0,fpsT=0,PRmax=MOB?1.25:1.5,PRcur=PRmax,fpsBad=0,warmT=0,lastT=0;
+
+const MOB=matchMedia('(pointer:coarse)').matches||innerWidth<700||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent),PRmin=MOB?.7:1,SHM=MOB?768:1024;
+// kadr chegarasi (ms): telefonda ~60 FPS dan oshirilmaydi (90/120 Hz ekranlarda qizishni keskin kamaytiradi). Kompyuterda cheklov yo'q.
+const MIN_DT=MOB?14.5:0,LOWF=MOB?38:50;
+let fpsN=0,fpsT=0,PRmax=MOB?1.15:1.5,PRcur=PRmax,fpsBad=0,warmT=0,lastT=0,shF=0;
 const applyPR=()=>renderer.setPixelRatio(Math.min(devicePixelRatio,PRcur));
 const _SL=new THREE.Vector3(30,60,20),_SR=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),_SL).normalize(),_SU=new THREE.Vector3().crossVectors(_SL,_SR).normalize(),_ST=32/(MOB?768:1024),_bp=new THREE.Vector3();
 const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sp=new THREE.Sphere(new THREE.Vector3(),3.2);
 const _vs=new THREE.Sphere(new THREE.Vector3(),1),inView=(x,y,z,r)=>{_vs.center.set(x,y,z);_vs.radius=r;return _fr.intersectsSphere(_vs)};
 const shortest=a=>Math.atan2(Math.sin(a),Math.cos(a));
+/* ===== GORIZONTAL HOLAT =====
+   Telegram ichki brauzeri fullscreen va orientation.lock ni qo'llamaydi. Shuning uchun telefon tik turgan bo'lsa,
+   o'yin oynasi CSS bilan 90° buriladi (FL). Telefon haqiqatan yotqizilsa, burish o'zi o'chadi. */
+let FL=false,flAt=0;
+const vw=()=>FL?innerHeight:innerWidth,vh=()=>FL?innerWidth:innerHeight,rot=(dx,dy)=>FL?[dy,-dx]:[dx,dy];
+function tgInit(full){const tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return;
+ try{tg.ready();tg.expand();if(tg.disableVerticalSwipes)tg.disableVerticalSwipes();   // pastga surganda mini-ilova yopilib ketmasin
+  if(full&&tg.requestFullscreen&&tg.isVersionAtLeast&&tg.isVersionAtLeast('8.0'))tg.requestFullscreen()}catch(e){}}
+function syncFL(){
+ const b=document.body,want=!!(started&&MOB&&innerHeight>innerWidth&&performance.now()>=flAt);
+ if(want){FL=true;b.classList.add('fl');b.style.width=innerHeight+'px';b.style.height=innerWidth+'px';b.style.transform='translateX('+innerWidth+'px) rotate(90deg)';document.documentElement.style.setProperty('--vh',innerWidth+'px')}
+ else if(FL){FL=false;b.classList.remove('fl');b.style.width=b.style.height=b.style.transform=''}
+ fitCam();if(renderer)renderer.setSize(vw(),vh());
+}
 /* ===== OVOZ ===== */
 let AC=null,master=null,noiseBuf=null,muted=false,OUT=null,TAT=0,musicG=null;
 function initAudio(){
@@ -156,13 +172,13 @@ function updateWorld(dt){
   tx=t.x-da*_SR.x-db*_SU.x,ty=-da*_SR.y-db*_SU.y,tz=t.z-da*_SR.z-db*_SU.z;
   sun.target.position.set(tx,ty,tz);sun.position.set(tx+30,ty+60,tz+20)}
 }
-function fitCam(){const a=innerWidth/innerHeight,w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=(MOB||w)?1.25:1.5;PRcur=Math.min(PRcur,PRmax);applyPR()}}
+function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=MOB?1.15:(w?1.25:1.5);PRcur=Math.min(PRcur,PRmax);applyPR()}}
 function init(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0xbcd3e0);scene.fog=new THREE.Fog(0xbcd3e0,60,330);
  camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,500);
  renderer=new THREE.WebGLRenderer({antialias:!MOB,powerPreference:MOB?'default':'high-performance',stencil:false});
  renderer.setSize(innerWidth,innerHeight);applyPR();
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
+ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=!MOB;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
  document.body.appendChild(renderer.domElement);
  clock=new THREE.Clock();
  scene.add(new THREE.HemisphereLight(0xffffff,0x526174,1.4));
@@ -174,7 +190,7 @@ function init(){
  try{BQ=initBoqiy({scene,solids,toast,tone,addScore,addMoney,me:()=>me})}catch(e){console.error('Boqiy Shahar yuklanmadi',e)}
  try{CR=initCars({scene,solids,toast,tone,netSend,remotes,me:()=>me})}catch(e){console.error('Mashina yuklanmadi',e)}
  camera.position.set(0,3,-6);
- fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;fitCam();renderer.setSize(innerWidth,innerHeight)};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250));document.addEventListener('fullscreenchange',()=>setTimeout(rs,200))}
+ fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;syncFL()};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250));document.addEventListener('fullscreenchange',()=>setTimeout(rs,200))}
 }
 /* ===== PERSONAJ (GLB) ===== */
 const spawnChar=(g,n,x,z)=>loadGltf(g).then(gl=>{const c=new Char(gl,n,g,false);c.root.position.set(x,0,z);return c});
@@ -477,7 +493,7 @@ function placeBubble(ch){
  if(ch.bt<=0)return;const b=ch.bubble,p=_bp.copy(ch.root.position);p.y+=2.7;p.project(camera);
  if(p.z>1){b.style.opacity=0;return}b.style.opacity=1;
  if(!ch.bh)ch.bh=b.offsetHeight;
- const x=clamp((p.x*.5+.5)*innerWidth,110,innerWidth-110),y=Math.max(ch.bh+50,(-p.y*.5+.5)*innerHeight);
+ const x=clamp((p.x*.5+.5)*vw(),110,vw()-110),y=Math.max(ch.bh+50,(-p.y*.5+.5)*vh());
  b.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(-50%,-100%)';
 }
 /* bot ustidagi "-10 bal" yozuvi: tana (ko'krak) balandligidan o'ngga qarab ko'tariladi; gap pufagi esa bosh tepasida, shuning uchun ustma-ust tushmaydi */
@@ -491,7 +507,7 @@ function updPops(dt){
   if(q.t>1.3){q.e.remove();pops.splice(i,1);continue}
   const p=_bp.copy(q.ch.root.position);p.y+=1.0+q.t*.5;p.project(camera);
   if(p.z>1){q.e.style.opacity=0;continue}
-  const x=(p.x*.5+.5)*innerWidth+46+q.ox,y=(-p.y*.5+.5)*innerHeight;
+  const x=(p.x*.5+.5)*vw()+46+q.ox,y=(-p.y*.5+.5)*vh();
   q.e.style.opacity=Math.min(1,(1.3-q.t)*2.5);q.e.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(0,-50%)'}
 }
 function cullChars(){
@@ -553,7 +569,7 @@ function doFlip(kind){
 function createControls(){
  const joy=$('joystick'),stick=$('stick');
  let jr=null;
- function upd(e){const r=jr||(jr=joy.getBoundingClientRect());let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);
+ function upd(e){const r=jr||(jr=joy.getBoundingClientRect());let [dx,dy]=rot(e.clientX-(r.left+r.width/2),e.clientY-(r.top+r.height/2));
   const max=r.width*.3,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max}
   stick.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;joyDir.set(dx/max,dy/max);
   joy.classList.toggle('run',joyDir.length()>=RUN_AT)}
@@ -576,7 +592,7 @@ function createControls(){
  $('ptt').onclick=()=>VO.on?pttUp():pttDown();
  const cv=renderer.domElement;
  cv.addEventListener('pointerdown',e=>{if(camPointer!==null)return;camPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;cv.setPointerCapture(e.pointerId)});
- cv.addEventListener('pointermove',e=>{if(camPointer!==e.pointerId)return;cameraAngle+=(e.clientX-lastX)*.006;cameraPitch=clamp(cameraPitch+(e.clientY-lastY)*.005,-.3,1.25);lastX=e.clientX;lastY=e.clientY});
+ cv.addEventListener('pointermove',e=>{if(camPointer!==e.pointerId)return;const [mx,my]=rot(e.clientX-lastX,e.clientY-lastY);cameraAngle+=mx*.006;cameraPitch=clamp(cameraPitch+my*.005,-.3,1.25);lastX=e.clientX;lastY=e.clientY});
  const end=e=>{if(camPointer===e.pointerId)camPointer=null};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
 }
 /* ===== FIZIKA ===== */
@@ -800,7 +816,7 @@ function warmup(){
  try{
   const kept=[],fc=[];
   gls.forEach(gl=>{if(!gl)return;gl.scene.traverse(o=>{if(o.isMesh){kept.push([o,o.castShadow,o.receiveShadow]);o.castShadow=o.receiveShadow=true}});scene.add(gl.scene)});
-  scene.traverse(o=>{if(o.frustumCulled!==false){fc.push(o);o.frustumCulled=false}
+  renderer.shadowMap.needsUpdate=true;scene.traverse(o=>{if(o.frustumCulled!==false){fc.push(o);o.frustumCulled=false}
    const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
    ms.forEach(mt=>{for(const k in mt){const v=mt[k];if(v&&v.isTexture)renderer.initTexture(v)}})});
   renderer.render(scene,camera);
@@ -828,9 +844,10 @@ function rotHint(){
  $('rotOk').onclick=()=>{done();goFullLandscape()};
  addEventListener('resize',()=>{if(!port()&&box.classList.contains('open'))done()});
 }
-init();createControls();animate();preload();
+tgInit(false);addEventListener('load',()=>tgInit(false));init();createControls();animate();preload();
 /* to'liq ekran + gorizontal holat (foydalanuvchi bosganda ishlaydi; brauzer faqat tugma bosilganda ruxsat beradi) */
 function goFullLandscape(){
+ tgInit(true);flAt=performance.now()+800;
  try{
   const d=document,el=d.documentElement,isFs=()=>d.fullscreenElement||d.webkitFullscreenElement;
   const lock=()=>{try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}};
@@ -851,7 +868,7 @@ $('go').onclick=async()=>{
   const gl=await loadGltf(selG);
   me=new Char(gl,myInfo.name,selG,true);me.root.position.set((Math.random()-.5)*10,0,(Math.random()-.5)*10);if(P.rank)me.setRank(P.rank);
  }catch(e){console.error(e);$('msg').textContent='Model yuklanmadi: '+CHARS[selG].model;$('go').disabled=false;return}
- $('intro').style.display='none';started=true;tone(660,.15,.12,'sine',990);
+ $('intro').style.display='none';started=true;setTimeout(syncFL,850);tone(660,.15,.12,'sine',990);
  say('Salom, '+myInfo.name+'!');connect();if(CB)CB.start();if(PL)PL.start();
 };
 /* ===== SIKL ===== */
@@ -865,9 +882,10 @@ function animate(t){
   warmT+=raw;
   if(raw>.25){fpsN=0;fpsT=0}
   else if(warmT>2.5){fpsN++;fpsT+=raw;if(fpsT>1.5){const f=fpsN/fpsT;fpsN=0;fpsT=0;
-   if(f<50){if(++fpsBad>=2&&PRcur>PRmin){fpsBad=0;PRcur=Math.max(PRmin,PRcur-.25);applyPR()}}else fpsBad=0}}
+   if(f<LOWF){if(++fpsBad>=2){fpsBad=0;if(PRcur>PRmin){PRcur=Math.max(PRmin,PRcur-.2);applyPR()}else if(sun.castShadow&&f<LOWF-8){sun.castShadow=false;toast('Grafika yengillashtirildi')}}}else fpsBad=0}}
  }
  updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);cullChars();
+ if(MOB)renderer.shadowMap.needsUpdate=!!(++shF&1);   // telefonda soya har 2-kadrda yangilanadi
  if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));if(PL)PL.cops.forEach(o=>placeBubble(o.c));if(W)W.dancers.forEach(c=>placeBubble(c));updPops(dt);updCtx();remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
  updRadio();
  renderer.render(scene,camera);
