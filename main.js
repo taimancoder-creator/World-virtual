@@ -22,10 +22,10 @@ const myInfo={name:'Taiman',g:0,id:Math.random().toString(36).slice(2,10)};
 const remotes=new Map(),joyDir=new THREE.Vector2(),keys={};
 let cameraAngle=0,cameraPitch=.2,camPointer=null,lastX=0,lastY=0,joystickPointer=null,stepT=0,camDist=3.8,camK=1;
 
-const MOB=matchMedia('(pointer:coarse)').matches||innerWidth<700||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent),PRmin=MOB?.7:1,SHM=MOB?768:1024;
+const MOB=matchMedia('(pointer:coarse)').matches||innerWidth<700||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent),PRmin=MOB?.85:1,SHM=MOB?768:1024;
 // kadr chegarasi (ms): telefonda ~60 FPS dan oshirilmaydi (90/120 Hz ekranlarda qizishni keskin kamaytiradi). Kompyuterda cheklov yo'q.
-const MIN_DT=MOB?14.5:0,LOWF=MOB?38:50;
-let fpsN=0,fpsT=0,PRmax=MOB?1.15:1.5,PRcur=PRmax,fpsBad=0,warmT=0,lastT=0,shF=0;
+const MIN_DT=MOB?10:0,LOWF=MOB?38:50,HIFPS=MOB?54:57;   // MIN_DT=10: 90 Hz da 90, 120 Hz da 60 FPS (avval 14.5 edi: 90 Hz da 45 FPS bo'lib qotardi)
+let fpsN=0,fpsT=0,PRmax=MOB?1.3:1.5,PRcur=PRmax,fpsBad=0,fpsGood=0,PRcap=9,upAt=0,warmT=0,lastT=0,shF=0;
 const applyPR=()=>renderer.setPixelRatio(Math.min(devicePixelRatio,PRcur));
 const _SL=new THREE.Vector3(30,60,20),_SR=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),_SL).normalize(),_SU=new THREE.Vector3().crossVectors(_SL,_SR).normalize(),_ST=32/(MOB?768:1024),_bp=new THREE.Vector3();
 const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sp=new THREE.Sphere(new THREE.Vector3(),3.2);
@@ -172,17 +172,17 @@ function updateWorld(dt){
   tx=t.x-da*_SR.x-db*_SU.x,ty=-da*_SR.y-db*_SU.y,tz=t.z-da*_SR.z-db*_SU.z;
   sun.target.position.set(tx,ty,tz);sun.position.set(tx+30,ty+60,tz+20)}
 }
-function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=MOB?1.15:(w?1.25:1.5);PRcur=Math.min(PRcur,PRmax);applyPR()}}
+function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=MOB?1.3:(w?1.25:1.5);PRcur=Math.min(PRcur,PRmax);applyPR()}}
 function init(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0xbcd3e0);scene.fog=new THREE.Fog(0xbcd3e0,60,330);
- camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,500);
+ camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.3,500);
  renderer=new THREE.WebGLRenderer({antialias:!MOB,powerPreference:MOB?'default':'high-performance',stencil:false});
  renderer.setSize(innerWidth,innerHeight);applyPR();
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=!MOB;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
  document.body.appendChild(renderer.domElement);
  clock=new THREE.Clock();
  scene.add(new THREE.HemisphereLight(0xffffff,0x526174,1.4));
- sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=true;sun.shadow.mapSize.set(SHM,SHM);
+ sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=true;sun.shadow.mapSize.set(SHM,SHM);sun.shadow.bias=-.0005;sun.shadow.normalBias=.04;
  Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,far:160});scene.add(sun,sun.target);
  const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,view:inView,barTok:BARH,beat:beatNow,nChars:CHARS.length});
  CB=initCombat({crime:t=>PL&&PL.crime(t),cops:()=>PL?PL.cops.map(o=>o.c):[],ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
@@ -882,7 +882,9 @@ function animate(t){
   warmT+=raw;
   if(raw>.25){fpsN=0;fpsT=0}
   else if(warmT>2.5){fpsN++;fpsT+=raw;if(fpsT>1.5){const f=fpsN/fpsT;fpsN=0;fpsT=0;
-   if(f<LOWF){if(++fpsBad>=2){fpsBad=0;if(PRcur>PRmin){PRcur=Math.max(PRmin,PRcur-.2);applyPR()}else if(sun.castShadow&&f<LOWF-8){sun.castShadow=false;toast('Grafika yengillashtirildi')}}}else fpsBad=0}}
+   if(f<LOWF){fpsGood=0;if(++fpsBad>=2){fpsBad=0;if(PRcur>PRmin){PRcur=Math.max(PRmin,PRcur-.15);PRcap=PRcur+.1;upAt=t+15000;applyPR()}else if(sun.castShadow&&f<LOWF-10){sun.castShadow=false;toast('Soyalar o‘chirildi: qurilma sekin')}}}
+   else{fpsBad=0;   // tezlik yetarli bo'lsa sifat sekin-asta qaytadi (avval pasaygan sifat hech qachon qaytmasdi)
+    if(f>=HIFPS&&t>upAt&&PRcur<Math.min(PRmax,PRcap)){if(++fpsGood>=3){fpsGood=0;PRcur=Math.min(PRmax,PRcap,PRcur+.1);applyPR()}}else fpsGood=0}}}
  }
  updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);cullChars();
  if(MOB)renderer.shadowMap.needsUpdate=!!(++shF&1);   // telefonda soya har 2-kadrda yangilanadi
