@@ -11,9 +11,10 @@ export function initWorld(C){
  const lbl=(t,col,w,x,y,z)=>{const cn=document.createElement('canvas');cn.width=512;cn.height=128;const g=cn.getContext('2d');g.textAlign='center';g.font='bold 72px system-ui';g.shadowColor=col;g.shadowBlur=20;g.fillStyle=col;g.fillText(t,256,90);
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cn),transparent:true,depthWrite:false,fog:false}));s.scale.set(w,w/4,1);s.position.set(x,y,z);scene.add(s)};
  const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),view:C.view,onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam},tree=makeTree(K);
- const coin=(x,y,z,v=25,s=5)=>{const m=put(new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.07,20),mat(0xf2b92a,0x9a6a00,.6)),x,y,z,false);m.rotation.x=Math.PI/2;coins.push({m,x,y,z,v,s,t:0})};
+ const coinGeo=new THREE.CylinderGeometry(.3,.3,.07,20),coinMat=mat(0xf2b92a,0x9a6a00,.6);   // barcha tangalar umumiy geometriya va material ishlatadi (avval har biriga alohida)
+ const coin=(x,y,z,v=25,s=5)=>{const m=put(new THREE.Mesh(coinGeo,coinMat),x,y,z,false);m.rotation.x=Math.PI/2;coins.push({m,x,y,z,v,s,t:0})};
  // landshaft: yo'llar, suv, tog'lar, bulutlar, daraxtlar
- const roads=buildRoads(scene,ticks,matchMedia('(pointer:coarse)').matches||innerWidth<700,solids); // 3D yo'l modeli (roads.js)
+ const roads=buildRoads(scene,ticks,matchMedia('(pointer:coarse)').matches||innerWidth<700,solids,C.cam); // 3D yo'l modeli (roads.js)
  // eski ko'lmak olib tashlandi (yangi shaharda parklar va ko'lmaklar bor)
  const cgeo=new THREE.SphereGeometry(1,8,6),cmat=new THREE.MeshBasicMaterial({color:0xffffff,fog:false});
  for(let i=0;i<8;i++){const g=new THREE.Group();for(let j=0;j<3;j++){const b=new THREE.Mesh(cgeo,cmat);b.scale.setScalar(4+R()*3);b.position.set(j*5-5,R()*2,R()*3);b.scale.y*=.55;g.add(b)}g.position.set((R()-.5)*300,105+R()*30,(R()-.5)*300);g.scale.setScalar(2.4);scene.add(g);clouds.push(g)}
@@ -36,7 +37,7 @@ export function initWorld(C){
  // portal + topishmoq
  let solved=false,pcd=0;const ptl=(x,z,c)=>{const g=new THREE.Group();g.position.set(x,2.2,z);g.add(new THREE.Mesh(new THREE.TorusGeometry(1.9,.2,12,40),mat(c,c,1.6)),new THREE.Mesh(new THREE.CircleGeometry(1.8,28),glow(c,.45)));scene.add(g);spin.push({m:g,s:1,y:1})};
  ptl(-20,15,0xff62d5);ptl(70,-66,0x5be7a9);lbl('PORTAL','#ff62d5',3,-20,5,15);lbl('QAYTISH','#5be7a9',3,70,5,-66);
- flat(34,34,0xd9b97a,70,-70);for(let i=0;i<8;i++)coin(58+R()*24,.9,-82+R()*24,40,8);
+ for(let i=0;i<8;i++)coin(58+R()*24,.9,-82+R()*24,40,8);
  put(new THREE.Mesh(new THREE.BoxGeometry(1.4,2.4,1.4),mat(0x7d8ea0,0x335577,.6)),-28,1.2,12);lbl('TOPISHMOQ','#ffe27a',3.4,-28,3.4,12);
  const RID=['Ko‘p bo‘lsa, shuncha kam ko‘rasiz. U nima?',['qorongulik','qorongilik','zulmat','qorongu']];
  const house=(hx,hz,secret)=>buildHouse(K,hx,hz,secret);

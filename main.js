@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import {initWorld} from './world.js';
+import {treeLOD,treeStats} from './buildings.js';
 import {initCombat} from './combat.js';
 import {initUI} from './ui.js';
 import {buildTerrain,buildSky,groundMat} from './terrain.js';import {initBoqiy,BQZ} from './boqiy.js';import {initCars} from './cars.js';import {initHeli} from './heli.js';import {initPolice} from './police.js';
@@ -180,6 +181,12 @@ function dbgBuild(){
  d.appendChild(r);document.body.appendChild(d);DBG.el=d;DBG.txt=t;DBG.btns=r;
 }
 function dbgToggle(o){if(!DBG.el)dbgBuild();DBG.on=o===undefined?!DBG.on:o;DBG.el.style.display=DBG.on?'block':'none';DBG.fr=0;DBG.acc=0;DBG.worst=0;DBG.upd=0;DBG.rnd=0}
+function dbgInfo(){   // renderer ma'lumoti (bir marta hisoblanadi)
+ if(DBG.gpu)return DBG.gpu;
+ let r='?';try{const gl=renderer.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info');r=e?String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)):String(gl.getParameter(gl.RENDERER))}catch(e){}
+ const c=renderer.capabilities;DBG.gpu='GPU '+r.slice(0,36)+'\nWebGL'+(c.isWebGL2?'2':'1')+' · maxTex '+c.maxTextureSize+' · aniso '+c.getMaxAnisotropy()+' · '+(MOB?'mobil':'desktop');
+ return DBG.gpu;
+}
 function dbgTick(raw,upd,rnd){
  DBG.fr++;DBG.acc+=raw;DBG.upd+=upd;DBG.rnd+=rnd;if(raw>DBG.worst)DBG.worst=raw;
  if(DBG.acc<.5)return;
@@ -189,7 +196,9 @@ function dbgTick(raw,upd,rnd){
   +'Draw calls '+i.render.calls+'   Uchburchak '+(i.render.triangles/1000).toFixed(1)+'k\n'
   +'Geometriya '+i.memory.geometries+'   Tekstura '+i.memory.textures+'   Shader '+(i.programs?i.programs.length:0)+'\n'
   +'Rejim '+gfxMode.toUpperCase()+(gfxPref==='auto'?' (avto)':'')+'   PR '+Math.min(devicePixelRatio,PRcur).toFixed(2)+'\n'
-  +'Soya '+(sun&&sun.castShadow?SHM+'px, har '+SHE+'-kadr':'o‘chiq')+'   '+renderer.domElement.width+'×'+renderer.domElement.height;
+  +'Soya '+(sun&&sun.castShadow?SHM+'px, har '+SHE+'-kadr':'o‘chiq')+'   '+renderer.domElement.width+'×'+renderer.domElement.height+'\n'
+  +'Daraxt LOD (to‘liq/o‘rta/uzoq) '+treeStats().join(' / ')+'\n'
+  +dbgInfo()+(performance.memory?'\nJS heap '+(performance.memory.usedJSHeapSize/1048576).toFixed(0)+' MB':'');
  [...DBG.btns.children].forEach(b=>{b.style.background=b.dataset.v===gfxPref?'rgba(0,200,255,.38)':'rgba(255,255,255,.08)'});
  DBG.fr=0;DBG.acc=0;DBG.worst=0;DBG.upd=0;DBG.rnd=0;
 }
@@ -234,7 +243,7 @@ function init(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0xbcd3e0);scene.fog=new THREE.Fog(0xbcd3e0,60,330);
  camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.3,500);
  renderer=new THREE.WebGLRenderer({antialias:!MOB||gfxPref==='ultra',powerPreference:MOB?'default':'high-performance',stencil:false});
- renderer.setSize(innerWidth,innerHeight);gfxApply(gfxDetect(),true);window.GFX={mode:gfxMode,mobile:MOB};   // roads.js shu rejimga qarab quriladi
+ renderer.setSize(innerWidth,innerHeight);gfxApply(gfxDetect(),true);window.GFX={mode:gfxMode,mobile:MOB,renderer};   // roads.js shu rejimga qarab quriladi
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=SHE===1;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
  document.body.appendChild(renderer.domElement);
  clock=new THREE.Clock();
@@ -244,8 +253,8 @@ function init(){
  const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,view:inView,barTok:BARH,beat:beatNow,nChars:CHARS.length});
  CB=initCombat({crime:t=>PL&&PL.crime(t),cops:()=>PL?PL.cops.map(o=>o.c):[],ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
  PL=initPolice({toast,tone,addScore,addMoney,body,P,far:BQZ,me:()=>me,loadModel:spawnModel});
- try{BQ=initBoqiy({scene,solids,toast,tone,addScore,addMoney,me:()=>me})}catch(e){console.error('Boqiy Shahar yuklanmadi',e)}
- try{CR=initCars({scene,solids,toast,tone,netSend,remotes,me:()=>me})}catch(e){console.error('Mashina yuklanmadi',e)}
+ try{BQ=initBoqiy({scene,solids,toast,tone,addScore,addMoney,renderer,me:()=>me})}catch(e){console.error('Boqiy Shahar yuklanmadi',e)}
+ try{CR=initCars({scene,solids,toast,tone,netSend,remotes,renderer,me:()=>me})}catch(e){console.error('Mashina yuklanmadi',e)}
  try{HE=initHeli({scene,solids,toast,tone,me:()=>me,renderer,camera})}catch(e){console.error('Vertolyot yuklanmadi',e)}
  camera.position.set(0,3,-6);
  fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;syncFL()};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250));document.addEventListener('fullscreenchange',()=>setTimeout(rs,200))}
@@ -288,7 +297,7 @@ class Char{
   const clone=SkeletonUtils.clone(gltf.scene);
   this.root=prepare(clone);this.model=clone;this.base=clone.position.clone();this.acts={};this.cur=null;this.lock=0;this.lockT=1;this.name=name;this.g=g;
   this.moving=false;this.running=false;this.air=false;this.grounded=true;this.speed=0;this.vx=0;this.vz=0;this.vy=0;this.jc=0;this.ph=0;this.mw=0;this.aw=0;this.limbs=[];
-  this.wv=0;this.wvw=0;this.wvT=0;this.pw=0;this.pt=0;this.pk='h';this.ps=1;this.mod=new Map();this.combo=0;this.lockN='';this.fixY=0;this.feet=[];this.h0=0;this.pivot=this.root.userData.pivot;this.pose=0;this.sw=0;this.dv=0;this.dB=0;this.dtc=.016;this.dip=0;this.off=false;
+  this.wv=0;this.wvw=0;this.wvT=0;this.pw=0;this.pt=0;this.pk='h';this.ps=1;this.mod=new Map();this.combo=0;this.lockN='';this.fixY=0;this.feet=[];this.h0=0;this.pivot=this.root.userData.pivot;this.pose=0;this.sw=0;this.dv=0;this.dB=0;this.dtc=.016;this.dip=0;this.off=false;this.far=false;this.fa=0;this.fk=0;
   this.mixer=new THREE.AnimationMixer(clone);
   gltf.animations.forEach(clip=>{
    const n=clip.name.toLowerCase(),a=this.mixer.clipAction(clip);
@@ -333,7 +342,7 @@ class Char{
  // zarba kombinatsiyasi: 0 o'ng qo'l, 1 chap qo'l, 2 o'ng oyoq, 3 chap oyoq
  punch(i){const k=((i|0)%4+4)%4;this.pk=k<2?'h':'k';this.ps=(k%2===0)?1:-1;const ms=this.pk==='h'?450:700;this.lock=ms/1000;this.lockT=this.lock;this.lockN='punch';this.pt=0}
  wave(s){this.wv=s||2}
- setRank(t){const on=t||'';if(this.rank===on)return;this.rank=on;this.root.remove(this.tag);this.tag.material.map.dispose();this.tag=tagSprite(this.name,this.tagCol,on);this.root.add(this.tag)}
+ setRank(t){const on=t||'';if(this.rank===on)return;this.rank=on;this.root.remove(this.tag);this.tag.material.map.dispose();this.tag.material.dispose();this.tag=tagSprite(this.name,this.tagCol,on);this.root.add(this.tag)}
  feetMin(){this.root.updateMatrixWorld(true);let m=1e9;for(const f of this.feet){f.getWorldPosition(_p0);if(_p0.y<m)m=_p0.y}return m-this.root.position.y}
  // qo'l/oyoq holatini joriy animatsiyadan maqsad yo'nalishga buradi (salom, zarba, tepish)
  armPose(){
@@ -366,11 +375,11 @@ class Char{
     if(L.v1){L.v1.lerp(_t1,kk);L.v2.lerp(_t2,kk)}else{L.v1=_t1.clone();L.v2=_t2.clone()}
     _t1.copy(L.v1);_t2.copy(L.v2);
    }else continue;
-   for(const b of [L.b,L.ch,L.ch2])if(b&&!this.mod.has(b))this.mod.set(b,{base:b.quaternion.clone(),last:null});
+   for(const b of [L.b,L.ch,L.ch2])if(b&&!this.mod.has(b))this.mod.set(b,{base:b.quaternion.clone(),last:new THREE.Quaternion()});
    aim(L.b,L.ch,_t1,w,fq);
    if(L.ch2){L.b.updateMatrixWorld(true);aim(L.ch,L.ch2,_t2,w,fq)}
   }
-  this.mod.forEach((m,b)=>{m.last=b.quaternion.clone()});
+  this.mod.forEach((m,b)=>{m.last.copy(b.quaternion)});
  }
  // RAQS: 6 ta harakat, har biri 8 zarb davom etadi; hamma raqqosalar bir xil (unison). B = soat zarbi (butun qism = zarb raqami)
  danceT(L,B,s){
@@ -514,6 +523,8 @@ class Char{
   }
  }
  update(dt){
+  // uzoqdagi (>50 m) NPC/o'yinchi: animatsiya har 2-kadrda yangilanadi (dt jamlanadi) — ko'zga ko'rinmaydi, CPU yarmiga kamayadi. Salto/zarba/yiqilishda to'liq tezlikda
+  if(this.far&&this.flipT<0&&this.lock<=0&&this.bt<=0){this.fa+=dt;if(++this.fk&1)return;dt=this.fa;this.fa=0}else this.fa=0;
   this.dtc=dt;if(this.lock>0)this.lock-=dt;
   if(this.flipT>=0){this.flipStep(dt);if(this.flipT>=0)return}
   {
@@ -570,7 +581,7 @@ function updPops(dt){
 }
 function cullChars(){
  camera.updateMatrixWorld();_pm.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);_fr.setFromProjectionMatrix(_pm);
- const t=c=>{_sp.center.copy(c.root.position);_sp.center.y+=1;c.root.visible=!c.hid&&_fr.intersectsSphere(_sp)};
+ const cp=camera.position,t=c=>{_sp.center.copy(c.root.position);_sp.center.y+=1;c.root.visible=!c.hid&&_fr.intersectsSphere(_sp);const dx=_sp.center.x-cp.x,dz=_sp.center.z-cp.z;c.far=dx*dx+dz*dz>2500};
  if(CB)CB.bots.forEach(b=>t(b.c));if(PL)PL.cops.forEach(o=>t(o.c));if(W)W.dancers.forEach(c=>{t(c);if(c.off)c.root.visible=false});remotes.forEach(r=>{if(r.char)t(r.char)});
 }
 /* ===== LOG ===== */
@@ -951,7 +962,7 @@ function animate(t){
     if(f>=HIFPS&&t>upAt&&PRcur<Math.min(PRmax,PRcap)){if(++fpsGood>=3){fpsGood=0;PRcur=Math.min(PRmax,PRcap,PRcur+.1);applyPR()}}else fpsGood=0}}}
  }
  const _p0=DBG.on?performance.now():0;
- updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);cullChars();
+ updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);treeLOD(camera.position);cullChars();
  if(SHE>1)renderer.shadowMap.needsUpdate=(++shF%SHE)===0;   // rejimga qarab soya har 2-3 kadrda yangilanadi
  if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));if(PL)PL.cops.forEach(o=>placeBubble(o.c));if(W)W.dancers.forEach(c=>placeBubble(c));updPops(dt);updCtx();remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
  updRadio();

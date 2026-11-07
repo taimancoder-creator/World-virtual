@@ -10,7 +10,7 @@ const TS = GM === 'ultra' ? (mob ? 2048 : 4096) : GM === 'balanced' ? 2048 : 102
 const S = {x:-20, z:0, yaw:Math.PI/2, alt:0, vy:0, fv:0, om:0, fly:false, ready:false, tAlt:0};
 const root = new T.Group(), H = new T.Group(), V3 = (x,y,z) => new T.Vector3(x,y,z);
 root.position.set(S.x, 0, S.z); root.rotation.y = S.yaw; root.visible = false; scene.add(root); H.position.y = 1.43; root.add(H);
-let rot, tailR, disc, beac, strobe, lamps = [];
+let rot, tailR, disc, beac, strobe, lamps = [], hl = null;   // hl: korpus LOD (uzoqdan past aniqlikdagi geometriya)
 const cv=s=>{const c=document.createElement('canvas');c.width=c.height=s;return c};
 let sd=2463534242;const rnd=()=>{sd^=sd<<13;sd^=sd>>>17;sd^=sd<<5;return(sd>>>0)/4294967296};
 const tex=(c,col)=>{const t=new T.CanvasTexture(c);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());if(col)t.colorSpace=T.SRGBColorSpace;return t};
@@ -48,7 +48,6 @@ function mkEnv(top,hor,gnd,sunC,sunI,sp){const s=new T.Scene(),g=new T.SphereGeo
  const mk=(w,h,col,I,pos)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(col).multiplyScalar(I),side:T.DoubleSide}));m.position.copy(pos);m.lookAt(0,0,0);s.add(m)};
  mk(26,26,sunC,sunI,sp.clone().multiplyScalar(40));mk(40,12,0xffffff,sunI*.25,new T.Vector3(0,40,-10));
  const pm=new T.PMREMGenerator(renderer),t=pm.fromScene(s,.02).texture;pm.dispose();return t}
-
 // ---------- model: 3 bosqichda quriladi ----------
 let P = null, env = null;
 function stage1(){ P = paint(TS); env = mkEnv(new T.Color(0x4a86c9), new T.Color(0xbfd6e6), new T.Color(0x6b6e66), 0xffffff, 12, V3(.5,.8,.6)); setTimeout(stage2, 60); }
@@ -62,7 +61,10 @@ function stage2(){
  const add = (g, m, x, y, z, p) => { const o = new T.Mesh(g, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; (p || H).add(o); return o; };
  const pts = []; for(let i = 0; i <= 160; i++){ const z = -6.4 + 8.8*i/160; pts.push(new T.Vector2(Rf(z), z)); }
  const bg = new T.LatheGeometry(pts, mob ? 72 : 128); bg.rotateX(Math.PI/2); bg.scale(.9, 1, 1);
- add(bg, body, 0, 0, 0); const gl = new T.Mesh(bg, glass); gl.scale.set(1.006, 1.006, 1); gl.renderOrder = 2; H.add(gl);
+ const bodyM = add(bg, body, 0, 0, 0); const gl = new T.Mesh(bg, glass); gl.scale.set(1.006, 1.006, 1); gl.renderOrder = 2; H.add(gl);
+ // LOD: korpus ~41k uchburchak x 3 o'tish (soya, korpus, oyna). Uzoqdan (>75 m) UV si bir xil, lekin ~4x yengil geometriya ishlatiladi
+ { const lp = []; for(let i = 0; i <= 80; i++){ const z = -6.4 + 8.8*i/80; lp.push(new T.Vector2(Rf(z), z)); }
+   const lo = new T.LatheGeometry(lp, mob ? 36 : 56); lo.rotateX(Math.PI/2); lo.scale(.9, 1, 1); hl = {hi:bg, lo, m:[bodyM, gl], cur:0}; }
  const co = add(new T.SphereGeometry(1, 40, 24), cowl, 0, 1.12, -.35); co.scale.set(.85, .5, 1.5);
  add(new T.BoxGeometry(.6, .18, .12), dark, 0, 1.3, 1.02); add(new T.CylinderGeometry(.09, .12, .5, 16), dark, .18, 1.0, -1.85).rotation.x = 1.4;
  [-.34, .34].forEach(x => { add(new T.BoxGeometry(.46, .12, .46), seat, x, -.4, .55); const b = add(new T.BoxGeometry(.46, .62, .1), seat, x, -.1, .3); b.rotation.x = -.15; });
@@ -93,7 +95,6 @@ function stage2(){
 }
 function stage3(){ root.visible = true; try{ renderer.compile(scene, camera); }catch(e){} S.ready = true; }
 setTimeout(stage1, 1500);
-
 // ---------- fizika ----------
 const me = () => C.me(), floorAt = (x, z) => { let f = window.roadGroundH ? window.roadGroundH(x, z) : 0;
  for(const s of solids){ if(s.top > f && Math.abs(x - s.x) < s.hx + 1 && Math.abs(z - s.z) < s.hz + 1) f = s.top; } return f; };
@@ -128,6 +129,8 @@ function update(dt){
  if(!S.ready) return;
  const m = me(); if(m){ const p = m.root.position; root.visible = S.fly || Math.hypot(p.x - S.x, p.z - S.z) < 230; }
  if(!root.visible) return;
+ if(hl && camera){ const d = Math.hypot(camera.position.x - S.x, camera.position.z - S.z), want = hl.cur ? (d > 55 ? 1 : 0) : (d > 75 ? 1 : 0);
+   if(want !== hl.cur){ hl.cur = want; const g = want ? hl.lo : hl.hi; hl.m[0].geometry = g; hl.m[1].geometry = g; } }
  S.om += ((S.fly ? 44 : 0) - S.om)*(1 - Math.exp(-dt*(S.fly ? .45 : .25)));
  if(!S.fly && S.alt > floorAt(S.x, S.z)){ S.alt = Math.max(floorAt(S.x, S.z), S.alt - 6*dt); }
  root.position.set(S.x, S.alt, S.z); root.rotation.y = S.yaw;

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {makeTree} from './buildings.js';
+import {batchStatic} from './batch.js';
+import {skyEnv} from './env.js';
 // Boqiy Shahar (Samarqand) — TAIMAN GTA ichidagi alohida hudud (taxminiy rekonstruksiya).
 // Asosiy xaritadan portal orqali kiriladi. Hudud dunyo z=BQZ markazida joylashgan, shuning uchun eski xaritaga tegmaydi.
 export const BQZ=1000;
@@ -47,6 +49,9 @@ export function initBoqiy(C){
   lat:M({color:0xf1ece4,alphaMap:T.lat,transparent:true,alphaTest:.5,side:THREE.DoubleSide,roughness:.4}),
   trunk:M({color:0x4a3a2a}),lawn:M({color:0x5c9a38,roughness:1}),lamp:M({color:0xffffff,emissive:0xffe2a0,emissiveIntensity:.6})
  };
+ // realistik aks: firuza gumbaz, kafel, marmar, shisha va kanal suvi osmon muhit xaritasini aks ettiradi (renderer bo'lmasa avvalgidek)
+ const penv=C.renderer?skyEnv(C.renderer):null;
+ if(penv)for(const[k,i]of[['turq',1],['tile',.6],['marble',.5],['glass',.7]]){mat[k].envMap=penv;mat[k].envMapIntensity=i}
  // dunyo masshtabli UV li quti
  const bg=(w,h,d,tile=6)=>{const g=new THREE.BoxGeometry(w,h,d),u=g.attributes.uv,dm=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];
   for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;u.setXY(i,u.getX(i)*dm[f][0]/tile,u.getY(i)*dm[f][1]/tile)}return g};
@@ -69,6 +74,7 @@ export function initBoqiy(C){
  add(box(1000,.6,22,mat.plaza,8),0,-3.2,0);
  const wg=new THREE.PlaneGeometry(1000,20,100,8);wg.rotateX(-Math.PI/2);
  const water=new THREE.Mesh(wg,new THREE.MeshStandardMaterial({color:0x1b6e69,roughness:.12,metalness:0,normalMap:T.wn,normalScale:new THREE.Vector2(.45,.45),transparent:true,opacity:.92}));
+ if(penv){water.material.envMap=penv;water.material.envMapIntensity=.9}
  water.position.y=-1.3;water.receiveShadow=true;G.add(water);const wp=wg.attributes.position,wb=Float32Array.from(wp.array);
  // kanalga tushib ketmaslik uchun ko'rinmas devor (ko'prikdan tashqari)
  sol(-252.55,0,247.45,10.1,60,-5);sol(252.55,0,247.45,10.1,60,-5);
@@ -165,6 +171,8 @@ export function initBoqiy(C){
  portal(G,BACK[0],BACK[1],0x5be7a9,'QAYTISH','#5be7a9');
  // uzoqdan ko'rinadigan yorug' nur (kirish portalini topish oson bo'lsin)
  {const b=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,70,16,1,true),new THREE.MeshBasicMaterial({color:0x5fe3ff,transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));b.position.set(ENTRY[0],35,ENTRY[1]);scene.add(b)}
+ // statik geometriya material bo'yicha 100 m li katakchalarga birlashtiriladi (draw call keskin kamayadi, frustum culling saqlanadi). Animatsiyali: g'ildirak, suv, portallar — tegilmaydi
+ batchStatic(G,{exclude:new Set([noria,water,...spin]),cell:100});
  /* ---------- yangilash ---------- */
  let wT=0,pcd=0,fr=0;
  function update(dt){

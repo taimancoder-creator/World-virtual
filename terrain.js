@@ -5,7 +5,7 @@ const sm=t=>t*t*(3-2*t),cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 function vn(x,z){const xi=Math.floor(x),zi=Math.floor(z),xf=sm(x-xi),zf=sm(z-zi),a=hash(xi,zi),b=hash(xi+1,zi),c=hash(xi,zi+1),d=hash(xi+1,zi+1);return a+(b-a)*xf+(c-a)*zf+(a-b-c+d)*xf*zf}
 function fbm(x,z,o=4){let s=0,a=.5,f=1;for(let i=0;i<o;i++){s+=a*vn(x*f,z*f);f*=2.03;a*=.5}return s}
 function ridge(x,z,o=5){let s=0,a=.5,f=1,w=1;for(let i=0;i<o;i++){let n=1-Math.abs(vn(x*f,z*f)*2-1);n*=n*w;w=cl(n*2);s+=n*a;f*=2.1;a*=.5}return s}
-const B=97,SPAN=215,NA=240,NR=64;
+const B=122,SPAN=215,NA=240,NR=64;
 const edge=t=>B/Math.max(Math.abs(Math.cos(t)),Math.abs(Math.sin(t)))+5;
 function hgt(x,z,u){
  const rise=sm(cl(u/.5)),peak=12+88*ridge(x*.011+3.1,z*.011+7.7),far=sm(cl(u*1.6));
