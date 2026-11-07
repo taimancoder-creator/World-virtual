@@ -13,17 +13,15 @@ export function initWorld(C){
  const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),view:C.view,onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam},tree=makeTree(K);
  const coin=(x,y,z,v=25,s=5)=>{const m=put(new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.07,20),mat(0xf2b92a,0x9a6a00,.6)),x,y,z,false);m.rotation.x=Math.PI/2;coins.push({m,x,y,z,v,s,t:0})};
  // landshaft: yo'llar, suv, tog'lar, bulutlar, daraxtlar
- const roads=buildRoads(scene,ticks,matchMedia('(pointer:coarse)').matches||innerWidth<700); // 3D yo'l modeli (roads.js)
- const pond=put(new THREE.Mesh(new THREE.CircleGeometry(13,32),new THREE.MeshStandardMaterial({color:0x2a8fd6,roughness:.15,metalness:.2})),-45,.05,45,false);pond.rotation.x=-Math.PI/2;
+ const roads=buildRoads(scene,ticks,matchMedia('(pointer:coarse)').matches||innerWidth<700,solids); // 3D yo'l modeli (roads.js)
+ // eski ko'lmak olib tashlandi (yangi shaharda parklar va ko'lmaklar bor)
  const cgeo=new THREE.SphereGeometry(1,8,6),cmat=new THREE.MeshBasicMaterial({color:0xffffff,fog:false});
  for(let i=0;i<8;i++){const g=new THREE.Group();for(let j=0;j<3;j++){const b=new THREE.Mesh(cgeo,cmat);b.scale.setScalar(4+R()*3);b.position.set(j*5-5,R()*2,R()*3);b.scale.y*=.55;g.add(b)}g.position.set((R()-.5)*300,105+R()*30,(R()-.5)*300);g.scale.setScalar(2.4);scene.add(g);clouds.push(g)}
- for(let i=0;i<4;i++){let x,z;do{x=(R()-.5)*170;z=(R()-.5)*170}while(roads.near(x,z,1)||Math.hypot(x+45,z-45)<16||Math.hypot(x,z)<14||Math.abs(x+40)<8&&z<0);tree(x,z)}
+ // eski 4 ta tasodifiy daraxt olib tashlandi (shahar daraxtlari roads.js da)
  // 4 ta baland bino
  const wc=document.createElement('canvas');wc.width=64;wc.height=128;const wx=wc.getContext('2d');wx.fillStyle='#26303f';wx.fillRect(0,0,64,128);
  for(let i=0;i<4;i++)for(let j=0;j<8;j++){wx.fillStyle=R()<.6?'#ffd98a':'#35506e';wx.fillRect(6+i*15,6+j*15,9,9)}
- const wt=new THREE.CanvasTexture(wc);wt.colorSpace=THREE.SRGBColorSpace;wt.wrapS=wt.wrapT=THREE.RepeatWrapping;
- [[65,65,48],[-65,65,60],[-65,-65,42],[65,-65,54]].forEach(([x,z,h])=>{const t=wt.clone();t.needsUpdate=true;t.repeat.set(3,h/9);
-  put(new THREE.Mesh(new THREE.BoxGeometry(12,h,12),new THREE.MeshStandardMaterial({map:t,emissiveMap:t,emissive:0xffffff,emissiveIntensity:.25,roughness:.8})),x,h/2,z);solids.push({x,z,hx:6,hz:6,top:h,y0:0})});
+ const wt=new THREE.CanvasTexture(wc);wt.colorSpace=THREE.SRGBColorSpace;wt.wrapS=wt.wrapT=THREE.RepeatWrapping; // eski 4 ta baland bino olib tashlandi (yangi shahar binolari roads.js da)
  // yashirin tangalar
  for(let i=0;i<30;i++){const a=R()*6.283,r=16+R()*62;coin(Math.cos(a)*r,.9,Math.sin(a)*r)}
  // katapulta (sakrash maydoni) va uchar orollar: yagona yo'l -> eng baland olmos
