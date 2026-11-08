@@ -50,7 +50,7 @@ function tgInit(full){const tg=window.Telegram&&window.Telegram.WebApp;if(!tg)re
  try{tg.ready();tg.expand();if(tg.disableVerticalSwipes)tg.disableVerticalSwipes();   // pastga surganda mini-ilova yopilib ketmasin
   if(full&&tg.requestFullscreen&&tg.isVersionAtLeast&&tg.isVersionAtLeast('8.0'))tg.requestFullscreen()}catch(e){}}
 function syncFL(){
- const b=document.body,want=!!(started&&MOB&&innerHeight>innerWidth&&performance.now()>=flAt);
+ const b=document.body,want=false;   // gorizontal majburiy burish BEKOR: o'yin doim tabiiy (tik yoki yotiq) holatda
  if(want){FL=true;b.classList.add('fl');b.style.width=innerHeight+'px';b.style.height=innerWidth+'px';b.style.transform='translateX('+innerWidth+'px) rotate(90deg)';document.documentElement.style.setProperty('--vh',innerWidth+'px')}
  else if(FL){FL=false;b.classList.remove('fl');b.style.width=b.style.height=b.style.transform=''}
  fitCam();if(renderer)renderer.setSize(vw(),vh());
@@ -238,12 +238,13 @@ function updateWorld(dt){
   tx=t.x-da*_SR.x-db*_SU.x,ty=-da*_SR.y-db*_SU.y,tz=t.z-da*_SR.z-db*_SU.z;
   sun.target.position.set(tx,ty,tz);sun.position.set(tx+30,ty+60,tz+20)}
 }
-function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){PRmax=GP[gfxMode].prMax;PRcur=Math.min(PRcur,PRmax);applyPR()}}
+const PBOOST=1.25;   // tik holatda ekran tor, kadrda kam narsa ko'rinadi -> tejalgan resursni piksel zichligiga beramiz (avto-moslashuv baribir tushiradi)
+function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){const old=PRmax;PRmax=GP[gfxMode].prMax*(MOB&&!w?PBOOST:1);PRcur=PRmax>old?PRmax:Math.min(PRcur,PRmax);applyPR()}}
 function init(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0xbcd3e0);scene.fog=new THREE.Fog(0xbcd3e0,60,330);
  camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.3,500);
  renderer=new THREE.WebGLRenderer({antialias:!MOB||gfxPref==='ultra',powerPreference:MOB?'default':'high-performance',stencil:false});
- renderer.setSize(innerWidth,innerHeight);gfxApply(gfxDetect(),true);window.GFX={mode:gfxMode,mobile:MOB,renderer};   // roads.js shu rejimga qarab quriladi
+ renderer.setSize(innerWidth,innerHeight);gfxApply(gfxDetect(),true);window.GFX={mode:gfxMode,mobile:MOB,renderer,view:inView};   // roads.js shu rejimga qarab quriladi
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=SHE===1;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
  document.body.appendChild(renderer.domElement);
  clock=new THREE.Clock();
@@ -907,7 +908,7 @@ async function preload(){
   .then(gl=>{okM[i]=true;gls[i]=gl}).catch(e=>{console.error(c.model,e);okM[i]=false}).then(()=>{prog[i]=1;upd()})));
  await new Promise(r=>setTimeout(r,350));
  warmup();
- buildGrid();$('intro').classList.remove('loading');rotHint();
+ buildGrid();$('intro').classList.remove('loading');
 }
 /* telefonni birinchi marta portret holatda ochganda: gorizontal o'ynash eslatiladi (bir marta) */
 function rotHint(){
@@ -925,7 +926,7 @@ function goFullLandscape(){
  tgInit(true);flAt=performance.now()+800;
  try{
   const d=document,el=d.documentElement,isFs=()=>d.fullscreenElement||d.webkitFullscreenElement;
-  const lock=()=>{try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}};
+  const lock=()=>{};   // yotiq holatga qulflash olib tashlandi
   if(isFs()){lock();return}
   const rq=el.requestFullscreen||el.webkitRequestFullscreen;
   if(rq){const p=rq.call(el,{navigationUI:'hide'});if(p&&p.then)p.then(lock).catch(lock);else setTimeout(lock,100)}
