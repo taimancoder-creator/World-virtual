@@ -37,6 +37,13 @@ const applyPR=()=>{const px=innerWidth*innerHeight||1;renderer.setPixelRatio(Mat
 const _SL=new THREE.Vector3(30,60,20),_SR=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),_SL).normalize(),_SU=new THREE.Vector3().crossVectors(_SL,_SR).normalize(),_bp=new THREE.Vector3();
 let _ST=32/SHM;
 const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sp=new THREE.Sphere(new THREE.Vector3(),3.2);
+// ===== KAMERA KO'RMAYDIGAN NARSANI CHIZMAYMIZ =====
+// Statik guruhlar (uy, bank, bar, park, tog' bo'laklari) uchun bitta chegara shar: kamera frustumi tashqarisida yoki tuman tugagan masofadan (330 m) uzoqda bo'lsa,
+// guruh butunlay o'chiriladi (three.js uni umuman aylanmaydi, matritsa/chizish yo'q). Tuman 330 m da to'liq yopadi, shuning uchun ko'rinish o'zgarmaydi.
+const CULL={items:[],
+ add(o,max=345){try{o.updateWorldMatrix(true,true);const b=new THREE.Box3().setFromObject(o);if(b.isEmpty())return;const s=b.getBoundingSphere(new THREE.Sphere());s.radius+=2;CULL.items.push({o,s,m:max,on:true})}catch(e){}},
+ run(cp){for(const it of CULL.items){const c=it.s.center,dx=c.x-cp.x,dy=c.y-cp.y,dz=c.z-cp.z,lim=it.m+it.s.radius,v=dx*dx+dy*dy+dz*dz<lim*lim&&_fr.intersectsSphere(it.s);if(v!==it.on){it.on=v;it.o.visible=v}}},
+ all(){for(const it of CULL.items){it.on=true;it.o.visible=true}}};
 const _vs=new THREE.Sphere(new THREE.Vector3(),1),inView=(x,y,z,r)=>{_vs.center.set(x,y,z);_vs.radius=r;return _fr.intersectsSphere(_vs)};
 const shortest=a=>Math.atan2(Math.sin(a),Math.cos(a));
 /* ===== GORIZONTAL HOLAT =====
@@ -123,6 +130,37 @@ function musicTick(){
 setInterval(musicTick,90);
 document.addEventListener('pointerdown',initAudio);
 $('mute').onclick=e=>{e.stopPropagation();initAudio();muted=!muted;if(master)master.gain.value=muted?0:.9;$('mute').classList.toggle('m',muted)};
+/* ===== GIROSKOP: telefonni qimirlatsangiz kamera shu tomonga buriladi (o‘ngga/chapga/tepaga/pastga) ===== */
+// devicemotion.rotationRate (gradus/soniya) ekran o'qlariga o'tkaziladi. Telefon ekran burchagi (yotiq/tik) hisobga olinadi. Dreyf yo'q: faqat burilish tezligi ishlatiladi.
+// Yo'nalish teskari bo'lsa: GYRO_INV_X yoki GYRO_INV_Y ni -1 qiling. Sezgirlik: GYRO_K.
+const GYRO_K=1.15,GYRO_INV_X=1,GYRO_INV_Y=1,GYRO_KEY='taiman_gyro',GY={on:false,ok:false,tried:false,last:0};
+let gyroAct=0;
+function gyroHandler(e){
+ const r=e.rotationRate;if(!r||!GY.on||typeof started==='undefined'||!started||document.body.classList.contains('modal'))return;
+ const now=performance.now(),dt=Math.min(.05,(now-GY.last)/1000);GY.last=now;if(dt<=0)return;
+ const a=((screen.orientation&&typeof screen.orientation.angle==='number')?screen.orientation.angle:(+window.orientation||0)),b=r.beta||0,g=r.gamma||0;
+ let wu,wr;   // wu: ekranning "yuqori" o'qi atrofidagi tezlik (burilish), wr: ekranning "o'ng" o'qi atrofidagi tezlik (tepa/past)
+ switch(((a%360)+360)%360){case 90:wu=b;wr=-g;break;case 180:wu=-g;wr=-b;break;case 270:wu=-b;wr=g;break;default:wu=g;wr=b}
+ const dz=v=>Math.abs(v)<2?0:v-Math.sign(v)*2;wu=dz(wu);wr=dz(wr);if(!wu&&!wr)return;
+ const k=Math.PI/180*GYRO_K*dt;
+ cameraAngle-=wu*k*GYRO_INV_X;cameraPitch=clamp(cameraPitch-wr*k*GYRO_INV_Y,-.3,1.25);gyroAct=.5;
+}
+async function gyroStart(){
+ if(GY.ok){GY.on=true;return true}
+ try{
+  if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){const s=await DeviceMotionEvent.requestPermission();if(s!=='granted'){toast('Giroskopga ruxsat berilmadi');return false}}
+  addEventListener('devicemotion',gyroHandler);GY.ok=true;GY.on=true;return true;
+ }catch(err){toast('Giroskop bu qurilmada ishlamadi');return false}
+}
+function gyroSet(on){GY.on=on&&GY.ok;const b=$('gyroBtn');if(b)b.classList.toggle('open',GY.on);try{localStorage.setItem(GYRO_KEY,on?'1':'0')}catch(e){}}
+{
+ let pref=true;try{pref=localStorage.getItem(GYRO_KEY)!=='0'}catch(e){}
+ const b=$('gyroBtn'),has=MOB&&typeof DeviceMotionEvent!=='undefined';
+ if(b){b.style.display=has?'':'none';
+  b.addEventListener('pointerdown',async e=>{e.preventDefault();e.stopPropagation();if(GY.on){gyroSet(false);toast('Giroskop o‘chirildi')}else if(await gyroStart()){gyroSet(true);toast('Giroskop yoqildi: telefonni qimirlating')}})}
+ // birinchi tegishda avtomatik yoqiladi (iOS ruxsat so'raydi)
+ if(has&&pref)document.addEventListener('pointerdown',async()=>{if(GY.tried)return;GY.tried=true;if(await gyroStart())gyroSet(true)},{once:true});
+}
 /* ===== BAL, MAQOM, FILTR, CHEAT OYNASI ===== */
 const BARH=8975501052642359;   // Bar ochish kodi hashi (terminalga yoziladi)
 const OWNER=8091422672336268;   // Taimanhacker paroli (cyrb53 hash)
@@ -228,7 +266,7 @@ function put(m,x,y,z,sh){m.position.set(x,y,z);if(sh!==false)m.castShadow=m.rece
 function slab(x,z,w,d,h,m,y0=0){const q=put(new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m),x,y0+h/2,z);solids.push({x,z,hx:w/2,hz:d/2,top:y0+h,y0});return q}
 function buildWorld(){
  const gr=put(new THREE.Mesh(new THREE.PlaneGeometry(700,700),groundMat()),0,0,0,false);gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;
- buildTerrain(scene);buildSky(scene);
+ buildTerrain(scene,CULL.add);buildSky(scene);
 }
 let W=null,CB=null,BQ=null,CR=null,PL=null,HE=null;
 function updateWorld(dt){
@@ -252,12 +290,12 @@ function init(){
  scene.add(new THREE.HemisphereLight(0xffffff,0x526174,1.4));
  sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=false;sun.shadow.mapSize.set(SHM,SHM);sun.shadow.bias=-.0005;sun.shadow.normalBias=.04;
  Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,far:160});scene.add(sun,sun.target);
- const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,view:inView,barTok:BARH,beat:beatNow,nChars:CHARS.length});
+ const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,cull:CULL.add,view:inView,barTok:BARH,beat:beatNow,nChars:CHARS.length});
  CB=initCombat({crime:t=>PL&&PL.crime(t),cops:()=>PL?PL.cops.map(o=>o.c):[],ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
  PL=initPolice({toast,tone,addScore,addMoney,body,P,far:BQZ,me:()=>me,loadModel:spawnModel});
  try{BQ=initBoqiy({scene,solids,toast,tone,addScore,addMoney,renderer,me:()=>me})}catch(e){console.error('Boqiy Shahar yuklanmadi',e)}
  try{CR=initCars({scene,solids,toast,tone,netSend,remotes,renderer,me:()=>me})}catch(e){console.error('Mashina yuklanmadi',e)}
- try{HE=initHeli({scene,solids,toast,tone,me:()=>me,renderer,camera})}catch(e){console.error('Vertolyot yuklanmadi',e)}
+ try{HE=initHeli({scene,solids,toast,tone,me:()=>me,renderer,camera,netSend,remotes,myId:()=>myInfo.id,audio:()=>AC&&master?{ctx:AC,out:master}:null})}catch(e){console.error('Vertolyot yuklanmadi',e)}
  camera.position.set(0,3,-6);
  fitCam();{const rs=()=>{const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&innerWidth===rs.w)return;rs.w=innerWidth;syncFL()};rs.w=innerWidth;addEventListener('resize',rs);addEventListener('orientationchange',()=>setTimeout(rs,250));document.addEventListener('fullscreenchange',()=>setTimeout(rs,200))}
 }
@@ -623,7 +661,7 @@ function seatTick(dt,len){
 function updCtx(){
  let t='';
  if(started&&me&&me.lock<=0&&!document.body.classList.contains('modal')){
-  if(HE&&HE.flying)t='VERTOLYOTDAN CHIQISH';else if(HE&&!me.pose&&me.grounded&&me.speed<3&&HE.canEnter())t='VERTOLYOTGA O‘TIRISH';else if(CR&&CR.driving)t='MASHINADAN CHIQISH';else if(CR&&!me.pose&&me.grounded&&me.speed<3&&CR.canEnter())t='MASHINAGA O‘TIRISH';else if(me.pose)t=me.pose===3?'RAQSNI TO‘XTATISH':'TURISH';
+  if(HE&&HE.flying)t='VERTOLYOTDAN CHIQISH';else if(HE&&!me.pose&&me.grounded&&me.speed<3&&HE.canEnter())t=HE.occupied?'VERTOLYOTGA YO‘LOVCHI BO‘LIB O‘TIRISH':'VERTOLYOTGA O‘TIRISH';else if(CR&&CR.driving)t='MASHINADAN CHIQISH';else if(CR&&!me.pose&&me.grounded&&me.speed<3&&CR.canEnter())t='MASHINAGA O‘TIRISH';else if(me.pose)t=me.pose===3?'RAQSNI TO‘XTATISH':'TURISH';
   else if(me.grounded&&me.speed<3){const s=nearestSpot();if(s)t=s.t==='lie'?'YOTISH':s.t==='dance'?'RAQS':'O‘TIRISH'}
  }
  if(t!==ctxT){ctxT=t;const b=$('ctxBtn');b.textContent=t;b.classList.toggle('show',!!t)}
@@ -727,8 +765,9 @@ function updateCamera(dt){
  if(!me)return;const c=me.root.position;
  if(!focInit||foc.distanceTo(c)>10){foc.copy(c);camY=c.y;camA=cameraAngle;camP=cameraPitch;focInit=true}
  const kf=1-Math.exp(-dt*12);foc.x+=(c.x-foc.x)*kf;foc.z+=(c.z-foc.z)*kf;
- if(HE&&HE.flying&&camPointer===null&&HE.speed>2)cameraAngle+=shortest(-HE.yaw-cameraAngle)*(1-Math.exp(-dt*1.6));
- if(CR&&CR.driving&&camPointer===null&&CR.speed>1.5)cameraAngle+=shortest(-CR.yaw-cameraAngle)*(1-Math.exp(-dt*2.2));
+ gyroAct=Math.max(0,gyroAct-dt);
+ if(HE&&HE.flying&&camPointer===null&&gyroAct<=0&&HE.speed>2)cameraAngle+=shortest(-HE.yaw-cameraAngle)*(1-Math.exp(-dt*1.6));
+ if(CR&&CR.driving&&camPointer===null&&gyroAct<=0&&CR.speed>1.5)cameraAngle+=shortest(-CR.yaw-cameraAngle)*(1-Math.exp(-dt*2.2));
  camA+=shortest(cameraAngle-camA)*(1-Math.exp(-dt*14));
  camP+=(cameraPitch-camP)*(1-Math.exp(-dt*10));
  const drv=CR&&CR.driving,wantD=((HE&&HE.flying)?14:drv?7.4:me.running?4.5:3.8)*camK;camDist+=(wantD-camDist)*(1-Math.exp(-dt*4));
@@ -817,6 +856,7 @@ function handle(d){
  else if(d.k==='h'||d.k==='f'||d.k==='t'||d.k==='lv'){if(CB)CB.onNet(id,d)}
  else if(d.k==='v'){playVoice(id,d)}
  else if(d.k==='cr'){if(CR)CR.onNet(id,d)}
+ else if(d.k==='he'){if(HE)HE.onNet(id,d)}
 }
 /* ===== CHAT ===== */
 let chatT=0;
@@ -894,7 +934,7 @@ function warmup(){
   renderer.shadowMap.needsUpdate=true;scene.traverse(o=>{if(o.frustumCulled!==false){fc.push(o);o.frustumCulled=false}
    const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
    ms.forEach(mt=>{for(const k in mt){const v=mt[k];if(v&&v.isTexture)renderer.initTexture(v)}})});
-  if(window.roadsWarm)window.roadsWarm(true);   // uzoq kvartallar ham GPU ga oldindan yuklansin
+  CULL.all();if(window.roadsWarm)window.roadsWarm(true);   // uzoq kvartallar ham GPU ga oldindan yuklansin
   renderer.render(scene,camera);
   if(window.roadsWarm)window.roadsWarm(false);
   fc.forEach(o=>{o.frustumCulled=true});
@@ -964,7 +1004,7 @@ function animate(t){
     if(f>=HIFPS&&t>upAt&&PRcur<Math.min(PRmax,PRcap)){if(++fpsGood>=3){fpsGood=0;PRcur=Math.min(PRmax,PRcap,PRcur+.1);applyPR()}}else fpsGood=0}}}
  }
  const _p0=DBG.on?performance.now():0;
- updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);treeLOD(camera.position);cullChars();
+ updateMe(dt);updateWorld(dt);updateRemotes(dt);updateCamera(dt);treeLOD(camera.position);cullChars();CULL.run(camera.position);
  if(SHE>1)renderer.shadowMap.needsUpdate=(++shF%SHE)===0;   // rejimga qarab soya har 2-3 kadrda yangilanadi
  if(me)placeBubble(me);if(CB)CB.bots.forEach(b=>placeBubble(b.c));if(PL)PL.cops.forEach(o=>placeBubble(o.c));if(W)W.dancers.forEach(c=>placeBubble(c));updPops(dt);updCtx();remotes.forEach(r=>{if(r.char)placeBubble(r.char)});
  updRadio();

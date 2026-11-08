@@ -10,7 +10,7 @@ export function initWorld(C){
  const glow=(c,o)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false});
  const lbl=(t,col,w,x,y,z)=>{const cn=document.createElement('canvas');cn.width=512;cn.height=128;const g=cn.getContext('2d');g.textAlign='center';g.font='bold 72px system-ui';g.shadowColor=col;g.shadowBlur=20;g.fillStyle=col;g.fillText(t,256,90);
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cn),transparent:true,depthWrite:false,fog:false}));s.scale.set(w,w/4,1);s.position.set(x,y,z);scene.add(s)};
- const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),view:C.view,onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam},tree=makeTree(K);
+ const ticks=[],K={scene,solids,slab,flat,mat,houses,coin:(...a)=>coin(...a),spots:C.spots||[],bars:[],tick:ticks,beat:C.beat||(()=>performance.now()/484),view:C.view,onBar:C.onBar,spawn:C.spawn,dancers:[],cam:C.cam,cull:C.cull},tree=makeTree(K);
  const coinGeo=new THREE.CylinderGeometry(.3,.3,.07,20),coinMat=mat(0xf2b92a,0x9a6a00,.6);   // barcha tangalar umumiy geometriya va material ishlatadi (avval har biriga alohida)
  const coin=(x,y,z,v=25,s=5)=>{const m=put(new THREE.Mesh(coinGeo,coinMat),x,y,z,false);m.rotation.x=Math.PI/2;coins.push({m,x,y,z,v,s,t:0})};
  // landshaft: yo'llar, suv, tog'lar, bulutlar, daraxtlar

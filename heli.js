@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 // Vertolyot (vertolyot_4k.html prototipining o'yinga ko'chirilgani). Kvartal ichida to'xtab turadi; yaqinlashib "E / VERTOLYOTGA O'TIRISH" bosiladi.
+// UMUMIY: birinchi o'tirgan = uchuvchi, qolganlar (3 tagacha) yo'lovchi bo'lib birga uchadi. Parrak ovozi jonli sintez qilinadi.
 // Boshqaruv: joystik oldinga/orqaga = tezlik, o'ng/chap = burilish; SAKRA = ko'tarilish, ZARBA = pasayish (kompyuterda: Space / Shift yoki C ushlab turiladi).
 // Tekstura: ULTRA 4096 (telefonda 2048), BALANCED 2048, PERFORMANCE 1024. Model o'yin boshlangach bosqichma-bosqich quriladi (yuklanishda qotmasligi uchun).
 // Ishlatish: const HE = initHeli({scene, solids, toast, tone, me, renderer, camera});  HE.flying, HE.yaw, HE.speed, HE.canEnter(), HE.enter(), HE.exit(), HE.fly(dt,ix,iy,keys,pulse), HE.down(), HE.update(dt)
 export function initHeli(C){
-const T = THREE, {scene, solids, toast, tone, renderer, camera} = C;
+const T = THREE, {scene, solids, toast, tone, renderer, camera} = C, remotes = C.remotes || new Map(), fin = v => typeof v === 'number' && isFinite(v);
 const mob = matchMedia('(pointer:coarse)').matches || innerWidth < 700, GM = (window.GFX && window.GFX.mode) || (mob ? 'balanced' : 'ultra');
 const TS = GM === 'ultra' ? (mob ? 2048 : 4096) : GM === 'balanced' ? 2048 : 1024, LITE = mob && GM !== 'ultra';
-const S = {x:-20, z:0, yaw:Math.PI/2, alt:0, vy:0, fv:0, om:0, fly:false, ready:false, tAlt:0};
+const S = {x:-20, z:0, yaw:Math.PI/2, alt:0, vy:0, fv:0, om:0, fly:false, ready:false, tAlt:0, role:0, seat:0, enterT:0, rem:null, crew:new Map(), netT:0, hbT:0};   // role: 0 yo'q, 1 uchuvchi, 2 yo'lovchi
 const root = new T.Group(), H = new T.Group(), V3 = (x,y,z) => new T.Vector3(x,y,z);
 root.position.set(S.x, 0, S.z); root.rotation.y = S.yaw; root.visible = false; scene.add(root); H.position.y = 1.43; root.add(H);
 let rot, tailR, disc, beac, strobe, lamps = [], hl = null;   // hl: korpus LOD (uzoqdan past aniqlikdagi geometriya)
@@ -100,16 +101,139 @@ const me = () => C.me(), floorAt = (x, z) => { let f = window.roadGroundH ? wind
  for(const s of solids){ if(s.top > f && Math.abs(x - s.x) < s.hx + 1 && Math.abs(z - s.z) < s.hz + 1) f = s.top; } return f; };
 const blocked = (x, z, a) => { for(const s of solids){ if(s.top > a + .4 && (s.y0 === undefined || s.y0 < a + 3.4) && Math.abs(x - s.x) < s.hx + 1.7 && Math.abs(z - s.z) < s.hz + 1.7) return true; } return false; };
 const near = () => { const m = me(); if(!m || !S.ready) return false; const p = m.root.position; return Math.hypot(p.x - S.x, p.z - S.z) < 4.6 && p.y < S.alt + 1.4; };
-function enter(){ const m = me(); if(!m || !S.ready) return; S.fly = true; m.root.visible = false; m.vx = m.vz = m.vy = 0; m.speed = 0; m.moving = m.running = false;
- tone(180, .2, .15, 'sawtooth', 90); toast('Vertolyotda · SAKRA = ko‘tarilish · ZARBA = pasayish'); }
-function leave(place){ const m = me(); if(!m) return; S.fly = false; S.fv = 0; S.vy = 0; m.root.visible = true; m.vx = m.vz = m.vy = 0;
- if(place) m.root.position.set(S.x + Math.cos(S.yaw)*3.6, floorAt(S.x, S.z), S.z - Math.sin(S.yaw)*3.6); tone(160, .1, .12, 'square', 260); }
+const shortest = a => Math.atan2(Math.sin(a), Math.cos(a));
+
+// ---------- umumiy vertolyot (tarmoq) ----------
+// Birinchi o'tirgan o'yinchi = UCHUVCHI (holatni 10 marta/soniya yuboradi). Keyingilar yoniga kelib o'tirsa = YO'LOVCHI (3 tagacha): ular uchuvchining
+// vertolyotini ko'radi va u bilan birga uchadi. Uchuvchi yerga qo'nib tushsa, eng avval o'tirgan yo'lovchi avtomatik uchuvchi bo'ladi.
+// Xabarlar (k:'he'): r=1 uchuvchi holati, r=0 uchuvchi tushdi (oxirgi holat bilan), r=2 yo'lovchi (har .5 s), r=3 yo'lovchi tushdi. e = o'tirgan vaqt (kim avval — shu uchuvchi).
+const MAXC = 3, myId = () => String(C.myId ? C.myId() : '');
+const nameOf = id => { const r = remotes.get(id); return r && r.name ? r.name : 'o‘yinchi'; };
+const send = o => { try{ if(C.netSend) C.netSend(Object.assign({k:'he'}, o)); }catch(e){} };
+const q2 = (v, n) => +v.toFixed(n), alive = t => performance.now() - t < 2500;
+const packPilot = r => ({r, e:S.enterT, x:q2(S.x, 2), y:q2(S.alt, 2), z:q2(S.z, 2), w:q2(S.yaw, 3), v:q2(S.fv, 1), o:q2(S.om, 1), a:q2(H.rotation.x, 3), b:q2(H.rotation.z, 3)});
+function crewPurge(){ for(const [id, c] of S.crew) if(!alive(c.t)) S.crew.delete(id); }
+function freeSeat(){ crewPurge(); const used = new Set([...S.crew.values()].map(c => c.seat)); for(let i = 1; i <= MAXC; i++) if(!used.has(i)) return i; return 1; }
+function pilotGone(d){
+ S.rem = null;
+ if(d && fin(d.x) && fin(d.z)){ S.x = d.x; S.z = d.z; if(fin(d.y)) S.alt = d.y; if(fin(d.w)) S.yaw = d.w; }
+ S.fv = 0; S.vy = 0;
+ if(S.role === 2){
+  crewPurge(); let first = true; const mid = myId();
+  for(const [id, c] of S.crew) if(c.e < S.enterT || (c.e === S.enterT && id < mid)){ first = false; break; }
+  if(first){ S.role = 1; S.seat = 0; S.netT = 0; S.tAlt = S.alt; toast('Siz endi uchuvchisiz'); send(packPilot(1)); }
+ }
+}
+function onNet(id, d){
+ if(!d || typeof d !== 'object') return;
+ const r = d.r | 0, now = performance.now();
+ if(r === 1){
+  if(!fin(d.x) || !fin(d.y) || !fin(d.z)) return;
+  const e = fin(d.e) ? d.e : 0;
+  if(S.role === 1){   // ikki kishi bir vaqtda o'tirib qoldi: avval o'tirgan uchuvchi bo'lib qoladi
+   if(e < S.enterT || (e === S.enterT && id < myId())){ S.role = 2; S.rem = null; S.seat = freeSeat(); S.hbT = 0; toast('Uchuvchi: ' + nameOf(id) + ' (u birinchi o‘tirgan)'); }
+   else return;
+  }
+  if(S.rem && S.rem.id !== id && alive(S.rem.t) && S.rem.e <= e) return;
+  S.rem = {id, t:now, e, x:d.x, y:d.y, z:d.z, w:fin(d.w) ? d.w : 0, v:fin(d.v) ? d.v : 0, o:fin(d.o) ? d.o : 0, a:fin(d.a) ? d.a : 0, b:fin(d.b) ? d.b : 0};
+ }else if(r === 0){
+  if(S.rem && S.rem.id === id) pilotGone(d);
+  else if(!S.rem && !S.fly && fin(d.x) && fin(d.z)){ S.x = d.x; S.z = d.z; if(fin(d.y)) S.alt = d.y; if(fin(d.w)) S.yaw = d.w; }
+ }else if(r === 2){ if(fin(d.s)) S.crew.set(id, {seat:d.s | 0, e:fin(d.e) ? d.e : 0, t:now}); }
+ else if(r === 3) S.crew.delete(id);
+}
+// boshqa o'yinchilarning personajlari vertolyot ichida: ular yerda turgandek ko'rinmasin
+const hidden = new Set(); let hidT = 0;
+function crewTick(dt){
+ hidT -= dt; if(hidT > 0) return; hidT = .25; crewPurge();
+ const ids = new Set(); if(S.rem) ids.add(S.rem.id); for(const id of S.crew.keys()) ids.add(id);
+ for(const id of ids){ const r = remotes.get(id); if(r && r.char){ r.char.hid = true; hidden.add(id); } }
+ for(const id of hidden) if(!ids.has(id)){ const r = remotes.get(id); if(r && r.char) r.char.hid = false; hidden.delete(id); }
+}
+
+// ---------- OVOZ: parrak ovozi (WebAudio, jonli sintez, fayl kerak emas) ----------
+// 1) pichirlash: 4 ta parrak urilishi (past "vup-vup", aylanish tezligiga qarab tezlashadi/pasayadi)  2) parrak shamoli (qo'ng'ir shovqin)
+// 3) turbina hushtagi  4) dum parragi g'ulduragi. Hajm masofaga qarab pasayadi, kabina ichida yumshoqroq; chap/o'ng kanalga kamera tomoniga qarab taqsimlanadi.
+let TB = null, SN = null, sndAcc = 0; const _fw = new T.Vector3();
+function sbuf(ctx){
+ if(TB && TB.ctx === ctx) return TB;
+ const sr = ctx.sampleRate, L = Math.round(sr*.5), th = ctx.createBuffer(1, L, sr), d = th.getChannelData(0), nl = (sr*1.5)|0, wn = ctx.createBuffer(1, nl, sr), nd = wn.getChannelData(0);
+ let br = 0; for(let i = 0; i < nl; i++){ const w = Math.random()*2 - 1; br = (br + .02*w)/1.02; nd[i] = Math.max(-1, Math.min(1, br*3.5 + w*.12)); }
+ const len = Math.round(sr*.14);
+ for(let k = 0; k < 4; k++){
+  const t0 = Math.round(k*L/4 + (k & 1 ? sr*.008 : 0)); let lp = 0;
+  for(let i = 0; i < len; i++){
+   const t = i/sr, env = Math.exp(-t*34)*(1 - Math.exp(-t*700)), ph = 50*t + 70*(1 - Math.exp(-t*30))/30, n = Math.random()*2 - 1; lp += (n - lp)*.3;
+   d[(t0 + i) % L] += (Math.sin(6.2832*ph) + .55*Math.sin(12.5664*ph) + .3*Math.sin(18.8496*ph))*env*.6 + lp*Math.exp(-t*110)*.5;
+  }
+ }
+ let mx = 0; for(let i = 0; i < L; i++) mx = Math.max(mx, Math.abs(d[i])); if(mx > 0) for(let i = 0; i < L; i++) d[i] /= mx*1.1;
+ return TB = {ctx, th, wn};
+}
+function sndOn(a){
+ const ctx = a.ctx, B = sbuf(ctx), n = {ctx, src:[]}, mk = (type, f, Q) => { const x = ctx.createBiquadFilter(); x.type = type; x.frequency.value = f; if(Q) x.Q.value = Q; return x; }, gn = v => { const g = ctx.createGain(); g.gain.value = v; return g; };
+ n.bus = gn(0); n.lp = mk('lowpass', 7000, .4); n.bus.connect(n.lp);
+ if(ctx.createStereoPanner){ n.pan = ctx.createStereoPanner(); n.lp.connect(n.pan); n.pan.connect(a.out); } else n.lp.connect(a.out);
+ n.th = ctx.createBufferSource(); n.th.buffer = B.th; n.th.loop = true; n.th.playbackRate.value = .12; n.gTh = gn(.6); n.th.connect(n.gTh); n.gTh.connect(n.bus);
+ n.wn = ctx.createBufferSource(); n.wn.buffer = B.wn; n.wn.loop = true; n.bp = mk('bandpass', 500, .7); n.gWn = gn(0); n.wn.connect(n.bp); n.bp.connect(n.gWn); n.gWn.connect(n.bus);
+ n.tu = ctx.createOscillator(); n.tu.type = 'sawtooth'; n.tu.frequency.value = 500; n.tf = mk('bandpass', 1200, 10); n.gTu = gn(0); n.tu.connect(n.tf); n.tf.connect(n.gTu); n.gTu.connect(n.bus);
+ n.tr = ctx.createOscillator(); n.tr.type = 'sawtooth'; n.tr.frequency.value = 70; n.trf = mk('bandpass', 420, 1.5); n.am = gn(.5); n.gTr = gn(0);
+ n.lf = ctx.createOscillator(); n.lf.frequency.value = 6; n.lg = gn(.5); n.lf.connect(n.lg); n.lg.connect(n.am.gain);
+ n.tr.connect(n.trf); n.trf.connect(n.am); n.am.connect(n.gTr); n.gTr.connect(n.bus);
+ n.src = [n.th, n.wn, n.tu, n.tr, n.lf]; n.src.forEach(s => s.start()); return n;
+}
+function sndOff(n){ try{ n.bus.gain.setTargetAtTime(0, n.ctx.currentTime, .06); }catch(e){} setTimeout(() => { n.src.forEach(s => { try{ s.stop(); }catch(e){} }); try{ n.bus.disconnect(); }catch(e){} }, 400); }
+function sndSet(n, om, att, pan, inside, load){
+ const f = Math.min(1, om/44), t = n.ctx.currentTime, k = .07;
+ n.th.playbackRate.setTargetAtTime(.12 + .88*f, t, k); n.gTh.gain.setTargetAtTime(.45 + .4*load, t, k);
+ n.gWn.gain.setTargetAtTime(.55*f*f*(1 + .4*load), t, k); n.bp.frequency.setTargetAtTime(360 + 700*f, t, k);
+ n.tu.frequency.setTargetAtTime(500 + 1100*f, t, k); n.tf.frequency.setTargetAtTime(500 + 1100*f, t, k); n.gTu.gain.setTargetAtTime(.05*f*f, t, k);
+ n.tr.frequency.setTargetAtTime(70 + 90*f, t, k); n.lf.frequency.setTargetAtTime(6 + 20*f, t, k); n.gTr.gain.setTargetAtTime(.1*f*f, t, k);
+ n.lp.frequency.setTargetAtTime(inside ? 2400 : 1500 + 5500*att, t, k);
+ n.bus.gain.setTargetAtTime(.8*att*Math.min(1, f*1.6), t, k);
+ if(n.pan) n.pan.pan.setTargetAtTime(pan, t, .1);
+}
+function sndTick(dt){
+ sndAcc -= dt; if(sndAcc > 0) return; sndAcc = .05;
+ try{
+  const a = C.audio && C.audio(), cp = camera && camera.position;
+  const dx = cp ? S.x - cp.x : 0, dz = cp ? S.z - cp.z : 0, d = Math.hypot(dx, dz), inside = S.fly, att = inside ? 1 : d > 260 ? 0 : 1/(1 + (d/22)*(d/22));
+  if(a && S.om > .8 && att > .01){
+   if(!SN || SN.ctx !== a.ctx) SN = sndOn(a);
+   let pan = 0; if(!inside && d > .5){ camera.getWorldDirection(_fw); pan = Math.max(-1, Math.min(1, (dx*(-_fw.z) + dz*_fw.x)/d))*.85; }
+   sndSet(SN, S.om, att, pan, inside, Math.min(1, Math.abs(S.fv)/36)*.6 + (S.vy > 1 ? .3 : 0));
+  }else if(SN){ sndOff(SN); SN = null; }
+ }catch(e){ if(SN){ try{ sndOff(SN); }catch(_){} SN = null; } }
+}
+
+// ---------- kirish / chiqish / uchish ----------
+function enter(){
+ const m = me(); if(!m || !S.ready) return;
+ const taken = !!(S.rem && alive(S.rem.t));
+ if(taken){ crewPurge(); if(S.crew.size >= MAXC){ toast('Vertolyot to‘la'); return; } }
+ S.fly = true; S.enterT = Date.now(); m.root.visible = false; m.vx = m.vz = m.vy = 0; m.speed = 0; m.moving = m.running = false;
+ if(taken){ S.role = 2; S.seat = freeSeat(); S.hbT = .5; send({r:2, e:S.enterT, s:S.seat}); toast('Yo‘lovchisiz · uchuvchi: ' + nameOf(S.rem.id) + ' · tushish uchun qo‘nishini kuting'); }
+ else{ S.role = 1; S.rem = null; S.netT = 0; toast('Siz uchuvchisiz · SAKRA = ko‘tarilish · ZARBA = pasayish · do‘stlar yoningizga o‘tira oladi'); }
+ tone(180, .2, .15, 'sawtooth', 90);
+}
+function leave(place){
+ const m = me(); if(!m) return; const was = S.role;
+ S.fly = false; S.role = 0; S.fv = 0; S.vy = 0; m.root.visible = true; m.vx = m.vz = m.vy = 0;
+ if(place){ const side = was === 2 ? -1 : 1, off = 3.6 + (was === 2 ? (S.seat - 1)*.7 : 0);
+  m.root.position.set(S.x + side*Math.cos(S.yaw)*off, floorAt(S.x, S.z), S.z - side*Math.sin(S.yaw)*off); }
+ if(was === 1) send(packPilot(0)); else if(was === 2) send({r:3});
+ S.seat = 0; tone(160, .1, .12, 'square', 260);
+}
 function exit(){ if(S.alt - floorAt(S.x, S.z) > .8){ toast('Avval yerga qo‘ning'); return; } leave(true); }
-const up = () => { S.tAlt = Math.min(110, S.alt + 8); }, down = () => { S.tAlt = Math.max(0, S.alt - 8); };
+const up = () => { if(S.role === 1) S.tAlt = Math.min(110, S.alt + 8); }, down = () => { if(S.role === 1) S.tAlt = Math.max(0, S.alt - 8); };
 function fly(dt, ix, iy, keys, pulse){
  const m = me(), p = m.root.position;
- if(Math.hypot(p.x - S.x, p.z - S.z) > 8){ leave(false); S.alt = floorAt(S.x, S.z); return false; }   // portal/teleport: tushib qolamiz
+ if(Math.hypot(p.x - S.x, p.z - S.z) > 8){ if(S.role === 1) S.alt = floorAt(S.x, S.z); leave(false); return false; }   // portal/teleport: tushib qolamiz
  if(m.lock > 0 && S.alt - floorAt(S.x, S.z) < 1){ leave(true); return false; }
+ if(S.role === 2){   // yo'lovchi: vertolyot bilan birga uchadi, boshqarmaydi
+  p.set(S.x, S.alt, S.z); m.root.rotation.y = S.yaw; m.vx = m.vz = m.vy = 0; m.speed = 0; m.grounded = true; m.moving = m.running = m.air = false; m.jc = 0;
+  return true;
+ }
  if(pulse) up(); if(keys.Space) S.tAlt = Math.min(110, S.tAlt + 14*dt); if(keys.ShiftLeft || keys.KeyC) S.tAlt = Math.max(0, S.tAlt - 14*dt);
  const fl = floorAt(S.x, S.z), ready = S.om > 38;
  S.tAlt = Math.max(S.tAlt, fl);
@@ -127,18 +251,34 @@ function fly(dt, ix, iy, keys, pulse){
 }
 function update(dt){
  if(!S.ready) return;
+ // tarmoq: uchuvchi holatini yuboradi, yo'lovchi "men shu yerdaman" deb turadi
+ if(S.role === 1){ S.netT -= dt; if(S.netT <= 0){ S.netT = .1; send(packPilot(1)); } }
+ else if(S.role === 2){ S.hbT -= dt; if(S.hbT <= 0){ S.hbT = .5; send({r:2, e:S.enterT, s:S.seat}); } }
+ // boshqa o'yinchi uchayotgan bo'lsa, vertolyot uning holatiga silliq ergashadi
+ if(S.rem && S.role !== 1){
+  const R = S.rem;
+  if(!alive(R.t)) pilotGone(null);
+  else{
+   if(Math.hypot(R.x - S.x, R.z - S.z) > 25){ S.x = R.x; S.z = R.z; S.alt = R.y; S.yaw = R.w; }
+   const k = 1 - Math.exp(-dt*10); S.x += (R.x - S.x)*k; S.alt += (R.y - S.alt)*k; S.z += (R.z - S.z)*k; S.yaw += shortest(R.w - S.yaw)*k; S.fv = R.v;
+   H.rotation.x += (R.a - H.rotation.x)*k; H.rotation.z += (R.b - H.rotation.z)*k;
+  }
+ }
+ crewTick(dt);
  const m = me(); if(m){ const p = m.root.position; root.visible = S.fly || Math.hypot(p.x - S.x, p.z - S.z) < 230; }
+ sndTick(dt);
  if(!root.visible) return;
  if(hl && camera){ const d = Math.hypot(camera.position.x - S.x, camera.position.z - S.z), want = hl.cur ? (d > 55 ? 1 : 0) : (d > 75 ? 1 : 0);
    if(want !== hl.cur){ hl.cur = want; const g = want ? hl.lo : hl.hi; hl.m[0].geometry = g; hl.m[1].geometry = g; } }
- S.om += ((S.fly ? 44 : 0) - S.om)*(1 - Math.exp(-dt*(S.fly ? .45 : .25)));
- if(!S.fly && S.alt > floorAt(S.x, S.z)){ S.alt = Math.max(floorAt(S.x, S.z), S.alt - 6*dt); }
+ const tgt = S.role === 1 ? 44 : S.rem ? S.rem.o : S.role === 2 ? 44 : 0;
+ S.om += (tgt - S.om)*(1 - Math.exp(-dt*(S.role === 1 ? .45 : S.rem ? 5 : S.fly ? .45 : .25)));
+ if(!S.fly && !S.rem && S.alt > floorAt(S.x, S.z)){ S.alt = Math.max(floorAt(S.x, S.z), S.alt - 6*dt); }
  root.position.set(S.x, S.alt, S.z); root.rotation.y = S.yaw;
- if(!S.fly){ H.rotation.x *= .9; H.rotation.z *= .9; }
+ if(!S.fly && !S.rem){ H.rotation.x *= .9; H.rotation.z *= .9; }
  if(S.om > .3){ rot.rotation.y += S.om*dt; tailR.rotation.x += S.om*5.2*dt; disc.material.opacity = Math.min(.9, Math.max(0, (S.om - 14)/26)); } else disc.material.opacity = 0;
  const t = performance.now()/1000, bk = (t % 1) < .12 ? 1 : 0, f = (t*1.5) % 1, sk = (f < .07 || (f > .2 && f < .27)) ? 1 : 0;
  lamps.forEach(l => { const v = l === beac ? bk : l === strobe ? sk : 1; l.m.emissiveIntensity = .2 + v*2.5; l.s.material.opacity = v*.45; });
- if(S.fly && S.om > 10) H.position.x = Math.sin(t*37)*.004*S.om/44; else H.position.x = 0;
+ if((S.fly || S.rem) && S.om > 10) H.position.x = Math.sin(t*37)*.004*S.om/44; else H.position.x = 0;
 }
-return {update, enter, exit, fly, down, canEnter:() => !S.fly && near(), get flying(){return S.fly}, get yaw(){return S.yaw}, get speed(){return Math.abs(S.fv)}};
+return {update, onNet, enter, exit, fly, down, canEnter:() => !S.fly && near(), get occupied(){ return !S.fly && !!S.rem && alive(S.rem.t); }, get role(){ return S.role; }, get flying(){ return S.fly; }, get yaw(){ return S.yaw; }, get speed(){ return Math.abs(S.fv); }};
 }

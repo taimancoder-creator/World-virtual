@@ -18,7 +18,7 @@ export function groundMat(){
  const t=new THREE.CanvasTexture(cn);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(150,150);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;
  return new THREE.MeshStandardMaterial({map:t,roughness:1});
 }
-export function buildTerrain(scene){
+export function buildTerrain(scene,cull){
  const pos=new Float32Array(NA*(NR+1)*3),col=new Float32Array(pos.length),idx=[];let k=0;
  for(let i=0;i<=NR;i++){const u=Math.pow(i/NR,1.4);for(let j=0;j<NA;j++){const t=j/NA*Math.PI*2,r=edge(t)+u*SPAN,x=Math.cos(t)*r,z=Math.sin(t)*r;pos[k++]=x;pos[k++]=hgt(x,z,u);pos[k++]=z}}
  for(let i=0;i<NR;i++)for(let j=0;j<NA;j++){const a=i*NA+j,b=i*NA+(j+1)%NA,c=(i+1)*NA+j,d=(i+1)*NA+(j+1)%NA;idx.push(a,b,c,b,d,c)}
@@ -33,8 +33,17 @@ export function buildTerrain(scene){
   col[v*3]=Math.min(1,c.r);col[v*3+1]=Math.min(1,c.g);col[v*3+2]=Math.min(1,c.b);
  }
  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
- const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));
- scene.add(terrain);
+ const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0});
+ // tog'/relyef 8 ta burchak bo'lagiga bo'linadi: kamera qaramagan tomon va tuman ortidagi bo'laklar chizilmaydi (hammasi bir xil material, ko'rinish o'zgarmaydi)
+ const SEC=8,w=NA/SEC,pa=geo.attributes.position.array,ca=geo.attributes.color.array,na=geo.attributes.normal.array;
+ for(let s=0;s<SEC;s++){
+  const n=(NR+1)*(w+1),P=new Float32Array(n*3),Cc=new Float32Array(n*3),N=new Float32Array(n*3),id=[];
+  for(let i=0;i<=NR;i++)for(let jj=0;jj<=w;jj++){const o=(i*(w+1)+jj)*3,q=(i*NA+(s*w+jj)%NA)*3;for(let c=0;c<3;c++){P[o+c]=pa[q+c];Cc[o+c]=ca[q+c];N[o+c]=na[q+c]}}
+  for(let i=0;i<NR;i++)for(let jj=0;jj<w;jj++){const a=i*(w+1)+jj,b=a+1,c=(i+1)*(w+1)+jj,d=c+1;id.push(a,b,c,b,d,c)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('color',new THREE.BufferAttribute(Cc,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));g.setIndex(id);
+  g.computeBoundingSphere();const mesh=new THREE.Mesh(g,mat);scene.add(mesh);if(cull)cull(mesh,335);
+ }
+ geo.dispose();
 }
 export function buildSky(scene){
  const g=new THREE.SphereGeometry(460,24,16),p=g.attributes.position,out=[],top=new THREE.Color(0x4a82c4),hor=new THREE.Color(0xbcd3e0),c=new THREE.Color();
