@@ -10,11 +10,8 @@ const $=id=>document.getElementById(id);
 // personajlar: rasm (img) va model (model) nomi bir xil. Yangi personaj qo'shish uchun shu ro'yxatga qator qo'shing
 const CHARS=[
  {id:'adam',name:'Adam',model:'adam.glb',img:'adam.png'},
- {id:'eva',name:'Eva',model:'eva.glb',img:'eva.png'},
- {id:'jack',name:'Jack',model:'jack.glb',img:'jack.png'},
- {id:'lily',name:'Lily',model:'lily.glb',img:'lily.png'},
- {id:'max',name:'Max',model:'max.glb',img:'max.png'},
- {id:'mia',name:'Mia',model:'mia.glb',img:'mia.png'}];
+ {id:'eva',name:'Eva',model:'eva.glb',img:'eva.png'}
+];   // faqat Adam va Eva (Jack, Lily, Max, Mia olib tashlandi)
 const WALK=2.8,RUN=5.4,RUN_AT=.88,G=24,JUMP=9;
 const clamp=THREE.MathUtils.clamp;
 let scene,camera,renderer,clock,sun,me=null,started=false,jumpReq=false;
@@ -35,7 +32,8 @@ let gfxPref='auto';try{gfxPref=localStorage.getItem(GFX_KEY)||'auto'}catch(e){}
 if(gfxPref!=='auto'&&!GP[gfxPref])gfxPref='auto';
 let gfxMode=gfxPref==='auto'?'balanced':gfxPref,PRmin=GP[gfxMode].prMin,SHM=GP[gfxMode].shm,SHE=GP[gfxMode].shEvery;
 let fpsN=0,fpsT=0,PRmax=GP[gfxMode].prMax,PRcur=PRmax,fpsBad=0,fpsGood=0,PRcap=9,upAt=0,warmT=0,lastT=0,shF=0;
-const applyPR=()=>renderer.setPixelRatio(Math.min(devicePixelRatio,PRcur));
+const MAXPX=MOB?850000:6e6;
+const applyPR=()=>{const px=innerWidth*innerHeight||1;renderer.setPixelRatio(Math.min(devicePixelRatio,PRcur,Math.sqrt(MAXPX/px)))};
 const _SL=new THREE.Vector3(30,60,20),_SR=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),_SL).normalize(),_SU=new THREE.Vector3().crossVectors(_SL,_SR).normalize(),_bp=new THREE.Vector3();
 let _ST=32/SHM;
 const _fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sp=new THREE.Sphere(new THREE.Vector3(),3.2);
@@ -49,11 +47,9 @@ const vw=()=>FL?innerHeight:innerWidth,vh=()=>FL?innerWidth:innerHeight,rot=(dx,
 function tgInit(full){const tg=window.Telegram&&window.Telegram.WebApp;if(!tg)return;
  try{tg.ready();tg.expand();if(tg.disableVerticalSwipes)tg.disableVerticalSwipes();   // pastga surganda mini-ilova yopilib ketmasin
   if(full&&tg.requestFullscreen&&tg.isVersionAtLeast&&tg.isVersionAtLeast('8.0'))tg.requestFullscreen()}catch(e){}}
-function syncFL(){
- const b=document.body,want=false;   // gorizontal majburiy burish BEKOR: o'yin doim tabiiy (tik yoki yotiq) holatda
- if(want){FL=true;b.classList.add('fl');b.style.width=innerHeight+'px';b.style.height=innerWidth+'px';b.style.transform='translateX('+innerWidth+'px) rotate(90deg)';document.documentElement.style.setProperty('--vh',innerWidth+'px')}
- else if(FL){FL=false;b.classList.remove('fl');b.style.width=b.style.height=b.style.transform=''}
- fitCam();if(renderer)renderer.setSize(vw(),vh());
+function syncFL(){   // burish butunlay olib tashlandi: faqat o'lcham va kamera yangilanadi
+ const b=document.body;if(b.classList.contains('fl')){b.classList.remove('fl');b.style.width=b.style.height=b.style.transform=''}
+ FL=false;fitCam();if(renderer)renderer.setSize(vw(),vh());
 }
 /* ===== OVOZ ===== */
 let AC=null,master=null,noiseBuf=null,muted=false,OUT=null,TAT=0,musicG=null;
@@ -159,7 +155,7 @@ function gfxDetect(){
 function gfxApply(m,reset){
  const g=GP[m];gfxMode=m;PRmin=g.prMin;PRmax=g.prMax;SHE=g.shEvery;PRcur=reset?PRmax:Math.min(PRmax,Math.max(PRmin,PRcur));PRcap=9;upAt=0;
  if(g.shm!==SHM){SHM=g.shm;_ST=32/SHM;if(sun){sun.shadow.mapSize.set(SHM,SHM);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}}
- renderer.shadowMap.autoUpdate=SHE===1;renderer.shadowMap.needsUpdate=true;if(sun)sun.castShadow=true;applyPR();
+ renderer.shadowMap.autoUpdate=SHE===1;if(sun)sun.castShadow=false;applyPR();
 }
 function setGfxPref(p){
  if(p!=='auto'&&!GP[p])return;
@@ -189,6 +185,9 @@ function dbgInfo(){   // renderer ma'lumoti (bir marta hisoblanadi)
 }
 function dbgTick(raw,upd,rnd){
  DBG.fr++;DBG.acc+=raw;DBG.upd+=upd;DBG.rnd+=rnd;if(raw>DBG.worst)DBG.worst=raw;
+ {const i0=renderer.info,sig=i0.memory.geometries+'/'+i0.memory.textures+'/'+(i0.programs?i0.programs.length:0);   // qotishni qayd qilish: >45 ms kadr, sababi (CPU update / render / yangi geometriya-tekstura-shader yuklanishi)
+  if(raw>.045&&DBG.sig){const L=DBG.log||(DBG.log=[]);L.push((raw*1000|0)+'ms upd '+upd.toFixed(0)+' rnd '+rnd.toFixed(0)+(sig!==DBG.sig?' YUKLANDI '+DBG.sig+'→'+sig:'')+' @'+(me?me.root.position.x.toFixed(0)+','+me.root.position.z.toFixed(0):''));if(L.length>6)L.shift()}
+  DBG.sig=sig}
  if(DBG.acc<.5)return;
  const i=renderer.info,n=DBG.fr;
  DBG.txt.textContent='FPS '+(n/DBG.acc).toFixed(0)+'  ('+(DBG.acc/n*1000).toFixed(1)+' ms, eng yomon '+(DBG.worst*1000).toFixed(0)+' ms)\n'
@@ -198,6 +197,7 @@ function dbgTick(raw,upd,rnd){
   +'Rejim '+gfxMode.toUpperCase()+(gfxPref==='auto'?' (avto)':'')+'   PR '+Math.min(devicePixelRatio,PRcur).toFixed(2)+'\n'
   +'Soya '+(sun&&sun.castShadow?SHM+'px, har '+SHE+'-kadr':'o‘chiq')+'   '+renderer.domElement.width+'×'+renderer.domElement.height+'\n'
   +'Daraxt LOD (to‘liq/o‘rta/uzoq) '+treeStats().join(' / ')+'\n'
+  +'Qotishlar (>45ms):\n'+((DBG.log&&DBG.log.length)?DBG.log.join('\n'):'yo‘q')+'\n'
   +dbgInfo()+(performance.memory?'\nJS heap '+(performance.memory.usedJSHeapSize/1048576).toFixed(0)+' MB':'');
  [...DBG.btns.children].forEach(b=>{b.style.background=b.dataset.v===gfxPref?'rgba(0,200,255,.38)':'rgba(255,255,255,.08)'});
  DBG.fr=0;DBG.acc=0;DBG.worst=0;DBG.upd=0;DBG.rnd=0;
@@ -238,18 +238,19 @@ function updateWorld(dt){
   tx=t.x-da*_SR.x-db*_SU.x,ty=-da*_SR.y-db*_SU.y,tz=t.z-da*_SR.z-db*_SU.z;
   sun.target.position.set(tx,ty,tz);sun.position.set(tx+30,ty+60,tz+20)}
 }
-const PBOOST=1.25;   // tik holatda ekran tor, kadrda kam narsa ko'rinadi -> tejalgan resursni piksel zichligiga beramiz (avto-moslashuv baribir tushiradi)
+const PBOOST=1;   // tik holatda ekran tor, kadrda kam narsa ko'rinadi -> tejalgan resursni piksel zichligiga beramiz (avto-moslashuv baribir tushiradi)
 function fitCam(){const a=vw()/vh(),w=a>1.2;camera.aspect=a;camera.fov=w?42:52;camK=w?.87:1;camera.updateProjectionMatrix();if(renderer){const old=PRmax;PRmax=GP[gfxMode].prMax*(MOB&&!w?PBOOST:1);PRcur=PRmax>old?PRmax:Math.min(PRcur,PRmax);applyPR()}}
 function init(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0xbcd3e0);scene.fog=new THREE.Fog(0xbcd3e0,60,330);
  camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.3,500);
  renderer=new THREE.WebGLRenderer({antialias:!MOB||gfxPref==='ultra',powerPreference:MOB?'default':'high-performance',stencil:false});
  renderer.setSize(innerWidth,innerHeight);gfxApply(gfxDetect(),true);window.GFX={mode:gfxMode,mobile:MOB,renderer,view:inView};   // roads.js shu rejimga qarab quriladi
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=SHE===1;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
+ renderer.shadowMap.enabled=false;   // SOYALAR BUTUNLAY O'CHIRILGAN
+ renderer.shadowMap.type=THREE.PCFShadowMap;renderer.shadowMap.autoUpdate=SHE===1;renderer.shadowMap.needsUpdate=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
  document.body.appendChild(renderer.domElement);
  clock=new THREE.Clock();
  scene.add(new THREE.HemisphereLight(0xffffff,0x526174,1.4));
- sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=true;sun.shadow.mapSize.set(SHM,SHM);sun.shadow.bias=-.0005;sun.shadow.normalBias=.04;
+ sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=false;sun.shadow.mapSize.set(SHM,SHM);sun.shadow.bias=-.0005;sun.shadow.normalBias=.04;
  Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,far:160});scene.add(sun,sun.target);
  const UI=initUI();buildWorld();W=initWorld({ask:UI.ask,input:UI.input,scene,solids,mat,put,slab,toast,tone,P,netSend,me:()=>me,remotes,myInfo,addScore,addMoney,spots,spawn:spawnChar,cam:()=>camera.position,view:inView,barTok:BARH,beat:beatNow,nChars:CHARS.length});
  CB=initCombat({crime:t=>PL&&PL.crime(t),cops:()=>PL?PL.cops.map(o=>o.c):[],ask:UI.ask,scene,P,toast,tone,netSend,remotes,myInfo,addScore,say,body,pop,houses:W.houses,me:()=>me,nChars:CHARS.length,spawn:spawnChar});
